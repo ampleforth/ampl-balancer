@@ -1,0 +1,7 @@
+build
+node_modules
+.idea/*
+coverage.json
+coverage/
+yarn-error.log
+crytic-export

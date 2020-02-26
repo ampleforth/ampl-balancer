@@ -1,0 +1,3 @@
+# Smart Pool Templates
+
+WIP
