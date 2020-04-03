@@ -37,6 +37,8 @@ contract CRPFactory {
         uint256[] calldata startBalances,
         uint256[] calldata startWeights,
         uint swapFee,
+        uint minimumWeightChangeBlockPeriod,
+        uint addTokenTimeLockInBLocks,
         bool[4] calldata rights
     )
         external
@@ -48,7 +50,9 @@ contract CRPFactory {
             startBalances,
             startWeights,
             swapFee,
-            rights
+            minimumWeightChangeBlockPeriod,
+            addTokenTimeLockInBLocks,
+            rights  
         );
         _isCrp[address(crp)] = true;
         emit LOG_NEW_CRP(msg.sender, address(crp));

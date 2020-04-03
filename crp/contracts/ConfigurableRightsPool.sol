@@ -71,7 +71,14 @@ contract ConfigurableRightsPool is PCToken {
     uint256[] private _newWeights;
     uint256 private _startBlock;
     uint256 private _endBlock;
+    uint private _minimumWeightChangeBlockPeriod;
+    uint private _addTokenTimeLockInBLocks; // Number of blocks that adding a token requires to wait 
     bool[4] private _rights; // TODO: consider making all public so we don't need getter functions
+
+    address private _commitNewToken;
+    uint private _commitNewBalance;
+    uint private _commitNewDenormalizedWeigth;
+    uint private _commitBlock;
 
     IBFactory public _bFactory;
     IBPool public _bPool;
@@ -83,7 +90,9 @@ contract ConfigurableRightsPool is PCToken {
         uint256[] memory startBalances,
         uint256[] memory startWeights,
         uint swapFee,
-        bool[4] memory rights // pausableSwap, configurableSwapFee, bool configurableWeights, bool configurableAddRemoveTokens
+        uint minimumWeightChangeBlockPeriod,
+        uint addTokenTimeLockInBLocks,
+        bool[4] memory rights // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
     )
         public
     {
@@ -93,6 +102,8 @@ contract ConfigurableRightsPool is PCToken {
         _startBalances = startBalances;
         _startWeights = startWeights;
         _swapFee = swapFee;
+        _minimumWeightChangeBlockPeriod = minimumWeightChangeBlockPeriod;
+        _addTokenTimeLockInBLocks = addTokenTimeLockInBLocks;
         _rights = rights;
     }
 
@@ -170,30 +181,62 @@ contract ConfigurableRightsPool is PCToken {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         require(_created, "ERR_NOT_CREATED");
         require(_rights[2], "ERR_NOT_CONFIGURABLE_WEIGHTS");
+
+        require(newWeight >= MIN_WEIGHT, "ERR_MIN_WEIGHT");
+        require(newWeight <= MAX_WEIGHT, "ERR_MAX_WEIGHT");
+
         uint currentWeight = _bPool.getDenormalizedWeight(token);
+        uint currentBalance = _bPool.getBalance(token);
         uint poolShares;
+        uint deltaBalance;
         uint totalSupply = _bPool.totalSupply();
+        uint totalWeight = _bPool.getTotalDenormalizedWeight();
+
+        require(badd(totalWeight,bsub(newWeight,currentWeight))<=MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
 
         if(newWeight<currentWeight){ // This means the controller will withdraw tokens to keep price. This means they need to redeem PCTokens
-            poolShares = bdiv(
-                            bmul(
-                                totalSupply,
-                                bsub(currentWeight, newWeight)
-                                ),
-                            _bPool.getTotalDenormalizedWeight()
+            poolShares = bmul(
+                            totalSupply,
+                            bdiv(
+                                bsub(currentWeight, newWeight),
+                                totalWeight
+                                )
                             );
+            deltaBalance = bmul(
+                            currentBalance,
+                            bdiv(newWeight, currentWeight)
+                            );
+
+            // New balance cannot be lower than MIN_BALANCE
+            require(bsub(currentBalance, deltaBalance) >= MIN_BALANCE, "ERR_MIN_BALANCE");
+            // First gets the tokens from this contract (Pool Controller) to msg.sender
+            _bPool.bind(token, bsub(currentBalance, deltaBalance), newWeight);
+
+            // Now with the tokens this contract can send them to msg.sender
+            bool xfer = IERC20(token).transfer(msg.sender, deltaBalance);
+            require(xfer, "ERR_ERC20_FALSE");
 
             _pullPoolShare(msg.sender, poolShares);
             _burnPoolShare(poolShares);
         }
-        else{ // This means the controller will deposit tokens to keep the price. This means they will be minted and given PCTokens
-            poolShares = bdiv(
-                            bmul(
-                                totalSupply,
-                                bsub(newWeight, currentWeight)
-                                ),
-                            _bPool.getTotalDenormalizedWeight()
+        else{ // This means the controller will deposit tokens to keep the price. This means they will be minted and given PCTokens         
+            poolShares = bmul(
+                            totalSupply,
+                            bdiv(
+                                bsub(newWeight, currentWeight),
+                                totalWeight
+                                )
                             );
+            deltaBalance = bmul(
+                            currentBalance,
+                            bdiv(newWeight, currentWeight)
+                            );
+
+            // First gets the tokens from msg.sender to this contract (Pool Controller)
+            bool xfer = IERC20(token).transferFrom(msg.sender, address(this), deltaBalance);
+            require(xfer, "ERR_ERC20_FALSE");
+            // Now with the tokens this contract can bind them to the pool it controls
+            _bPool.bind(token, badd(currentBalance, deltaBalance), newWeight);
 
             _mintPoolShare(poolShares);
             _pushPoolShare(msg.sender, poolShares);
@@ -209,6 +252,7 @@ contract ConfigurableRightsPool is PCToken {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         require(_created, "ERR_NOT_CREATED");
         require(_rights[2], "ERR_NOT_CONFIGURABLE_WEIGHTS");
+
         uint weightsSum = 0;
         // Check that endWeights are valid now to avoid reverting in a future pokeWeights call
         for (uint i = 0; i < _tokens.length; i++) {
@@ -216,7 +260,7 @@ contract ConfigurableRightsPool is PCToken {
             require(newWeights[i]<MIN_WEIGHT, "ERR_WEIGHT_BELOW_MIN");
             weightsSum += newWeights[i];
         }
-        require(weightsSum>MAX_TOTAL_WEIGHT, "ERR_TOTAL_WEIGHT_ABOVE_MAX");    
+        require(weightsSum<=MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
         require(endBlock>startBlock, "ERR_END_BLOCK_BEFORE_OR_EQUAL_TO_START_BLOCK");          
         
         if(block.number>startBlock){ // This means the weight update should start ASAP
@@ -225,8 +269,12 @@ contract ConfigurableRightsPool is PCToken {
         else{
             _startBlock = startBlock;
         }
+
         _endBlock = endBlock;
         _newWeights = newWeights;
+
+        // Prevent weights to be changed in less than the minimum weight change period.
+        require(bsub(_endBlock,_startBlock)>=_minimumWeightChangeBlockPeriod, "ERR_WEIGHT_CHANGE_PERIOD_BELOW_MIN");
 
         for (uint i = 0; i < _tokens.length; i++) {
             _startWeights[i] = _bPool.getDenormalizedWeight(_tokens[i]); // startWeights are current weights
@@ -240,7 +288,7 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(_created, "ERR_NOT_CREATED");
         require(_rights[2], "ERR_NOT_CONFIGURABLE_WEIGHTS");
-        require(block.number > _startBlock, "ERR_CANT_POKE_YET");
+        require(block.number >= _startBlock, "ERR_CANT_POKE_YET");
 
         uint minBetweenEndBlockAndThisBlock; // This allows for pokes after endBlock that get weights to endWeights
         if (block.number > _endBlock){
@@ -277,28 +325,43 @@ contract ConfigurableRightsPool is PCToken {
         }
     }
 
-    function addToken(address token, uint balance, uint denormalizedWeight)
+    function commitAddToken(address token, uint balance, uint denormalizedWeight)
         external
         _logs_
         _lock_
     {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");        
         require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
+        _commitNewToken = token;
+        _commitNewBalance = balance;
+        _commitNewDenormalizedWeigth = denormalizedWeight;
+        _commitBlock = block.number;
+    }
+
+    function applyAddToken()
+        external
+        _logs_
+        _lock_
+    {
+        require(msg.sender == _controller, "ERR_NOT_CONTROLLER");        
+        require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
+        require(bsub(block.number,_commitBlock)>=_addTokenTimeLockInBLocks ,"ERR_TIMELOCK_STILL_COUNTING");
+
         uint totalSupply = _bPool.totalSupply();
 
         uint poolShares = bdiv(
                             bmul(
                                 totalSupply,
-                                denormalizedWeight
+                                _commitNewDenormalizedWeigth
                                 ),
                             _bPool.getTotalDenormalizedWeight()
                             );
 
         // First gets the tokens from msg.sender to this contract (Pool Controller)
-        bool xfer = IERC20(token).transferFrom(msg.sender, address(this), balance);
+        bool xfer = IERC20(_commitNewToken).transferFrom(msg.sender, address(this), _commitNewBalance);
         require(xfer, "ERR_ERC20_FALSE");
         // Now with the tokens this contract can bind them to the pool it controls
-        _bPool.bind(token, balance, denormalizedWeight);
+        _bPool.bind(_commitNewToken, _commitNewBalance, _commitNewDenormalizedWeigth);
 
         _mintPoolShare(poolShares);
         _pushPoolShare(msg.sender, poolShares);
