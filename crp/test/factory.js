@@ -87,7 +87,7 @@ contract('CRPFactory', async (accounts) => {
 
         describe('Pausable swaps only', () => {
             it('Pauses if unpaused', async () => {
-                
+                //await controller.
                 assert.equal(1, 1);
                 // await truffleAssert.reverts(
                 //       pcContract.finalize(),

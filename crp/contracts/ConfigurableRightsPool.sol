@@ -62,6 +62,7 @@ contract ConfigurableRightsPool is PCToken {
 
     bool private _mutex;
     bool private _created;
+    bool private _smartPoolFinalized;
     uint private _swapFee;
     address private _controller;
 
@@ -105,7 +106,7 @@ contract ConfigurableRightsPool is PCToken {
         _minimumWeightChangeBlockPeriod = minimumWeightChangeBlockPeriod;
         _addTokenTimeLockInBLocks = addTokenTimeLockInBLocks;
         _rights = rights;
-    }
+    } 
 
     function setSwapFee(uint swapFee)
         external
@@ -134,6 +135,16 @@ contract ConfigurableRightsPool is PCToken {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         require(_rights[0], "ERR_NOT_PAUSABLE_SWAP");
         _bPool.setPublicSwap(publicSwap);
+    }
+
+    function finalizeSmartPool()
+        external
+        _logs_
+        _lock_
+    { 
+        require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
+        require(!_smartPoolFinalized, "ERR_SMART_POOL_ALREADY_FINALIZED");
+        _smartPoolFinalized = true;
     }
 
     function createPool()
@@ -430,6 +441,7 @@ contract ConfigurableRightsPool is PCToken {
         _lock_
     {
         require(_created, "ERR_NOT_CREATED");
+        require(_smartPoolFinalized, "ERR_SMART_POOL_NOT_FINALIZED");
 
         uint poolTotal = totalSupply();
 
@@ -453,6 +465,7 @@ contract ConfigurableRightsPool is PCToken {
         _lock_
     {
         require(_created, "ERR_NOT_CREATED");
+        require(_smartPoolFinalized, "ERR_SMART_POOL_NOT_FINALIZED");
 
         uint poolTotal = totalSupply();
         uint ratio = bdiv(poolAmountIn, poolTotal);
@@ -478,6 +491,7 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(_bPool.isBound(tokenIn), "ERR_NOT_BOUND");
         require(_created, "ERR_NOT_CREATED");
+        require(_smartPoolFinalized, "ERR_SMART_POOL_NOT_FINALIZED");
 
         poolAmountOut = _bPool.calcPoolOutGivenSingleIn(
                             _bPool.getBalance(tokenIn),
@@ -505,6 +519,7 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(_bPool.isBound(tokenIn), "ERR_NOT_BOUND");
         require(_created, "ERR_NOT_CREATED");
+        require(_smartPoolFinalized, "ERR_SMART_POOL_NOT_FINALIZED");
 
         tokenAmountIn = _bPool.calcSingleInGivenPoolOut(
                             _bPool.getBalance(tokenIn),
@@ -532,6 +547,7 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(_bPool.isBound(tokenOut), "ERR_NOT_BOUND");
         require(_created, "ERR_NOT_CREATED");
+        require(_smartPoolFinalized, "ERR_SMART_POOL_NOT_FINALIZED");
 
         tokenAmountOut = _bPool.calcSingleOutGivenPoolIn(
                             _bPool.getBalance(tokenOut),
@@ -559,6 +575,7 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(_bPool.isBound(tokenOut), "ERR_NOT_BOUND");
         require(_created, "ERR_NOT_CREATED");
+        require(_smartPoolFinalized, "ERR_SMART_POOL_NOT_FINALIZED");
 
         poolAmountIn = _bPool.calcPoolInGivenSingleOut(
                             _bPool.getBalance(tokenOut),
