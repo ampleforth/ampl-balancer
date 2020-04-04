@@ -137,6 +137,16 @@ contract ConfigurableRightsPool is PCToken {
         _bPool.setPublicSwap(publicSwap);
     }
 
+    // TODO: this function can probably be removed as the bPool can be accessed directly
+    function isPublicSwap()
+        external
+        _logs_
+        _lock_
+        returns (bool)
+    {
+        return _bPool.isPublicSwap();
+    }
+
     function finalizeSmartPool()
         external
         _logs_
