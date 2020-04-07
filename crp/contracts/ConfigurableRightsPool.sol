@@ -108,6 +108,16 @@ contract ConfigurableRightsPool is PCToken {
         _rights = rights;
     } 
 
+    // TODO: This function can probably be eliminated 
+    function getDenormalizedWeight(address token)
+        external view
+        _viewlock_
+        returns (uint)
+    {
+
+        return _bPool.getDenormalizedWeight(token);
+    }
+
     function setSwapFee(uint swapFee)
         external
         _logs_
@@ -210,28 +220,33 @@ contract ConfigurableRightsPool is PCToken {
         uint currentBalance = _bPool.getBalance(token);
         uint poolShares;
         uint deltaBalance;
-        uint totalSupply = _bPool.totalSupply();
+        uint deltaWeight;
+        uint totalSupply = totalSupply();
         uint totalWeight = _bPool.getTotalDenormalizedWeight();
 
         require(badd(totalWeight,bsub(newWeight,currentWeight))<=MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
 
         if(newWeight<currentWeight){ // This means the controller will withdraw tokens to keep price. This means they need to redeem PCTokens
+            deltaWeight = bsub(currentWeight, newWeight);
             poolShares = bmul(
                             totalSupply,
                             bdiv(
-                                bsub(currentWeight, newWeight),
+                                deltaWeight,
                                 totalWeight
                                 )
                             );
             deltaBalance = bmul(
                             currentBalance,
-                            bdiv(newWeight, currentWeight)
+                            bdiv(
+                                deltaWeight,
+                                currentWeight
+                                )
                             );
 
             // New balance cannot be lower than MIN_BALANCE
             require(bsub(currentBalance, deltaBalance) >= MIN_BALANCE, "ERR_MIN_BALANCE");
             // First gets the tokens from this contract (Pool Controller) to msg.sender
-            _bPool.bind(token, bsub(currentBalance, deltaBalance), newWeight);
+            _bPool.rebind(token, bsub(currentBalance, deltaBalance), newWeight);
 
             // Now with the tokens this contract can send them to msg.sender
             bool xfer = IERC20(token).transfer(msg.sender, deltaBalance);
@@ -241,23 +256,27 @@ contract ConfigurableRightsPool is PCToken {
             _burnPoolShare(poolShares);
         }
         else{ // This means the controller will deposit tokens to keep the price. This means they will be minted and given PCTokens         
+            deltaWeight = bsub(newWeight, currentWeight);
             poolShares = bmul(
                             totalSupply,
                             bdiv(
-                                bsub(newWeight, currentWeight),
+                                deltaWeight,
                                 totalWeight
                                 )
                             );
             deltaBalance = bmul(
                             currentBalance,
-                            bdiv(newWeight, currentWeight)
+                            bdiv(
+                                deltaWeight,
+                                currentWeight
+                                )
                             );
 
             // First gets the tokens from msg.sender to this contract (Pool Controller)
             bool xfer = IERC20(token).transferFrom(msg.sender, address(this), deltaBalance);
             require(xfer, "ERR_ERC20_FALSE");
             // Now with the tokens this contract can bind them to the pool it controls
-            _bPool.bind(token, badd(currentBalance, deltaBalance), newWeight);
+            _bPool.rebind(token, badd(currentBalance, deltaBalance), newWeight);
 
             _mintPoolShare(poolShares);
             _pushPoolShare(msg.sender, poolShares);
@@ -277,12 +296,11 @@ contract ConfigurableRightsPool is PCToken {
         uint weightsSum = 0;
         // Check that endWeights are valid now to avoid reverting in a future pokeWeights call
         for (uint i = 0; i < _tokens.length; i++) {
-            require(newWeights[i]>MAX_WEIGHT, "ERR_WEIGHT_ABOVE_MAX");
-            require(newWeights[i]<MIN_WEIGHT, "ERR_WEIGHT_BELOW_MIN");
+            require(newWeights[i] <= MAX_WEIGHT, "ERR_WEIGHT_ABOVE_MAX");
+            require(newWeights[i] >= MIN_WEIGHT, "ERR_WEIGHT_BELOW_MIN");
             weightsSum += newWeights[i];
         }
-        require(weightsSum<=MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
-        require(endBlock>startBlock, "ERR_END_BLOCK_BEFORE_OR_EQUAL_TO_START_BLOCK");          
+        require(weightsSum <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");         
         
         if(block.number>startBlock){ // This means the weight update should start ASAP
             _startBlock = block.number; // This prevents a big jump in weights if block.number>startBlock
@@ -317,12 +335,12 @@ contract ConfigurableRightsPool is PCToken {
         }
         else{
             minBetweenEndBlockAndThisBlock = block.number;
-        }
-        
+        }    
+
+        uint blockPeriod = bsub(_endBlock, _startBlock);
+        uint weightDelta;
+        uint newWeight;
         for (uint i = 0; i < _tokens.length; i++) {
-            uint blockPeriod = bsub(_endBlock, _startBlock);
-            uint weightDelta;
-            uint newWeight;
             if (_startWeights[i] >= _newWeights[i]) {
                 weightDelta = bsub(_startWeights[i], _newWeights[i]);
                 newWeight = bsub(
@@ -368,7 +386,7 @@ contract ConfigurableRightsPool is PCToken {
         require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
         require(bsub(block.number,_commitBlock)>=_addTokenTimeLockInBLocks ,"ERR_TIMELOCK_STILL_COUNTING");
 
-        uint totalSupply = _bPool.totalSupply();
+        uint totalSupply = totalSupply();
 
         uint poolShares = bdiv(
                             bmul(
@@ -396,7 +414,7 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");        
         require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
-        uint totalSupply = _bPool.totalSupply();
+        uint totalSupply = totalSupply();
 
         uint poolShares = bdiv(
                             bmul(
