@@ -80,7 +80,7 @@ contract('CRPFactory', async (accounts) => {
 
         });
 
-        describe('configurableSwapFee only', () => {
+        describe('configurableWeights only', () => {
             it('Controller should not be able to pause trades', async () => {
                 truffleAssert.reverts(
                       controller.setPublicSwap(false),

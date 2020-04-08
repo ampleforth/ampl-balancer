@@ -371,6 +371,12 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");        
         require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
+        require(denormalizedWeight <= MAX_WEIGHT, "ERR_WEIGHT_ABOVE_MAX");
+        require(denormalizedWeight >= MIN_WEIGHT, "ERR_WEIGHT_BELOW_MIN");
+   
+        require(_bPool.getTotalDenormalizedWeight() + denormalizedWeight <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
+
+
         _commitNewToken = token;
         _commitNewBalance = balance;
         _commitNewDenormalizedWeigth = denormalizedWeight;
@@ -400,6 +406,7 @@ contract ConfigurableRightsPool is PCToken {
         bool xfer = IERC20(_commitNewToken).transferFrom(msg.sender, address(this), _commitNewBalance);
         require(xfer, "ERR_ERC20_FALSE");
         // Now with the tokens this contract can bind them to the pool it controls
+        IERC20(_commitNewToken).approve(address(_bPool), uint(-1));   // Approves bPool to pull from this controller
         _bPool.bind(_commitNewToken, _commitNewBalance, _commitNewDenormalizedWeigth);
 
         _mintPoolShare(poolShares);
