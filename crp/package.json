@@ -6,7 +6,7 @@
     "description": "Smart pool template for Liquidity Bootstrapping Pools",
     "scripts": {
         "compile": "truffle compile",
-        "testrpc": "ganache-cli --deterministic --defaultBalanceEther 500 --gasLimit 100000000",
+        "testrpc": "ganache-cli --deterministic --defaultBalanceEther 500 --gasLimit 100000000 --allowUnlimitedContractSize",
         "test": "truffle test",
         "test:verbose": "VERBOSE=true truffle test",
         "coverage": "yarn solidity-coverage",
