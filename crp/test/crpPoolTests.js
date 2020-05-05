@@ -4,19 +4,26 @@ const ConfigurableRightsPool = artifacts.require('ConfigurableRightsPool');
 const CRPFactory = artifacts.require('CRPFactory');
 const TToken = artifacts.require('TToken');
 const truffleAssert = require('truffle-assertions');
-const { time } = require("@openzeppelin/test-helpers");
 
+/*
+Tests initial CRP Pool set-up including:
+BPool deployment, token binding, balance checks, BPT checks.
+*/
 contract('crpPoolTests', async (accounts) => {
     const admin = accounts[0];
     const nonAdmin = accounts[1];
     const { toWei } = web3.utils;
     const { fromWei } = web3.utils;
     const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-
     const MAX = web3.utils.toTwosComplement(-1);
+    // These are the intial settings for newCrp:
+    const swapFee = toWei('0.003');
+    const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
+    const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
+    const addTokenTimeLockInBLocks = 10;
+    const minimumWeightChangeBlockPeriod = 10;
 
-    let crpFactory, bFactory, bPool;
-    let crpPool;
+    let crpFactory, bFactory, bPool, crpPool;
     let CRPPOOL;
     let CRPPOOL_ADDRESS;
     let WETH;
@@ -29,11 +36,6 @@ contract('crpPoolTests', async (accounts) => {
     let xyz;
     let abc;
     let asd;
-    const swapFee = toWei('0.003');
-    let startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
-    let startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
-    let addTokenTimeLockInBLocks = 10;
-    let applyAddTokenValidBlock;
 
     before(async () => {
         /*
@@ -41,7 +43,7 @@ contract('crpPoolTests', async (accounts) => {
         Deploys new test tokens - XYZ, WETH, DAI, ABC, ASD
         Mints test tokens for Admin user (account[0])
         CRPFactory creates new CRP.
-        CRP creates new BPool.
+        Admin approves CRP for MAX
         */
         bfactory = await BFactory.deployed();
         crpFactory = await CRPFactory.deployed();
@@ -70,9 +72,9 @@ contract('crpPoolTests', async (accounts) => {
             [XYZ, WETH, DAI],
             startBalances,
             startWeights,
-            swapFee, //swapFee
-            10, //minimumWeightChangeBlockPeriod
-            addTokenTimeLockInBLocks, //addTokenTimeLockInBLocks
+            swapFee,
+            minimumWeightChangeBlockPeriod,
+            addTokenTimeLockInBLocks,
             [false, false, false, true] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );
 
@@ -81,9 +83,9 @@ contract('crpPoolTests', async (accounts) => {
             [XYZ, WETH, DAI],
             startBalances,
             startWeights,
-            swapFee, //swapFee
-            10, //minimumWeightChangeBlockPeriod
-            addTokenTimeLockInBLocks, //addTokenTimeLockInBLocks
+            swapFee,
+            minimumWeightChangeBlockPeriod,
+            addTokenTimeLockInBLocks,
             [false, false, false, true] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );
 
@@ -116,7 +118,6 @@ contract('crpPoolTests', async (accounts) => {
     });
 
     it('should not be able to createPool twice', async () => {
-
         await truffleAssert.reverts(
           crpPool.createPool(),
           'ERR_IS_CREATED',
@@ -165,5 +166,4 @@ contract('crpPoolTests', async (accounts) => {
         let adminBPTBalance = await crpPool.balanceOf.call(admin);
         assert.equal(adminBPTBalance, toWei('100'));
     })
-
 });
