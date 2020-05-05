@@ -8,6 +8,8 @@ CRPFactory.sol - Creates & stores registry of ConfigurableRightsPools.
 
 ConfigurableRightsPool.sol - Main Configurable Rights Pool contract.
 - Should it have a getController function?
+- Is INIT_POOL_SUPPLY correct?
+- Should _rights be public so people know what settings are?
 
 ## Getting Started - Local Testing
 

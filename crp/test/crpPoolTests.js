@@ -1,0 +1,169 @@
+const BFactory = artifacts.require('BFactory');
+const BPool = artifacts.require('BPool');
+const ConfigurableRightsPool = artifacts.require('ConfigurableRightsPool');
+const CRPFactory = artifacts.require('CRPFactory');
+const TToken = artifacts.require('TToken');
+const truffleAssert = require('truffle-assertions');
+const { time } = require("@openzeppelin/test-helpers");
+
+contract('crpPoolTests', async (accounts) => {
+    const admin = accounts[0];
+    const nonAdmin = accounts[1];
+    const { toWei } = web3.utils;
+    const { fromWei } = web3.utils;
+    const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+    const MAX = web3.utils.toTwosComplement(-1);
+
+    let crpFactory, bFactory, bPool;
+    let crpPool;
+    let CRPPOOL;
+    let CRPPOOL_ADDRESS;
+    let WETH;
+    let DAI;
+    let XYZ;
+    let ABC;
+    let ASD;
+    let weth;
+    let dai;
+    let xyz;
+    let abc;
+    let asd;
+    const swapFee = toWei('0.003');
+    let startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
+    let startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
+    let addTokenTimeLockInBLocks = 10;
+    let applyAddTokenValidBlock;
+
+    before(async () => {
+        /*
+        Uses deployed BFactory & CRPFactory.
+        Deploys new test tokens - XYZ, WETH, DAI, ABC, ASD
+        Mints test tokens for Admin user (account[0])
+        CRPFactory creates new CRP.
+        CRP creates new BPool.
+        */
+        bfactory = await BFactory.deployed();
+        crpFactory = await CRPFactory.deployed();
+        xyz = await TToken.new('XYZ', 'XYZ', 18);
+        weth = await TToken.new('Wrapped Ether', 'WETH', 18);
+        dai = await TToken.new('Dai Stablecoin', 'DAI', 18);
+        abc = await TToken.new('ABC', 'ABC', 18);
+        asd = await TToken.new('ASD', 'ASD', 18);
+
+        WETH = weth.address;
+        DAI = dai.address;
+        XYZ = xyz.address;
+        ABC = abc.address;
+        ASD = asd.address;
+
+        // admin balances
+        await weth.mint(admin, toWei('100'));
+        await dai.mint(admin, toWei('15000'));
+        await xyz.mint(admin, toWei('100000'));
+        await abc.mint(admin, toWei('100000'));
+        await asd.mint(admin, toWei('100000'));
+
+        // Copied this model of code from https://github.com/balancer-labs/balancer-core/blob/5d70da92b1bebaa515254d00a9e064ecac9bd18e/test/math_with_fees.js#L93
+        CRPPOOL = await crpFactory.newCrp.call(
+            bfactory.address,
+            [XYZ, WETH, DAI],
+            startBalances,
+            startWeights,
+            swapFee, //swapFee
+            10, //minimumWeightChangeBlockPeriod
+            addTokenTimeLockInBLocks, //addTokenTimeLockInBLocks
+            [false, false, false, true] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+        );
+
+        await crpFactory.newCrp(
+            bfactory.address,
+            [XYZ, WETH, DAI],
+            startBalances,
+            startWeights,
+            swapFee, //swapFee
+            10, //minimumWeightChangeBlockPeriod
+            addTokenTimeLockInBLocks, //addTokenTimeLockInBLocks
+            [false, false, false, true] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+        );
+
+        crpPool = await ConfigurableRightsPool.at(CRPPOOL);
+
+        CRPPOOL_ADDRESS = crpPool.address;
+
+        await weth.approve(CRPPOOL_ADDRESS, MAX);
+        await dai.approve(CRPPOOL_ADDRESS, MAX);
+        await xyz.approve(CRPPOOL_ADDRESS, MAX);
+        await abc.approve(CRPPOOL_ADDRESS, MAX);
+        await asd.approve(CRPPOOL_ADDRESS, MAX);
+    });
+
+    it('crpPool should have no BPool before creation', async () => {
+        const _bPool = await crpPool._bPool();
+        assert.equal(_bPool, ZERO_ADDRESS);
+    });
+
+    it('Admin should have no initial BPT', async () => {
+        let adminBPTBalance = await crpPool.balanceOf.call(admin);
+        assert.equal(adminBPTBalance, toWei('0'));
+    })
+
+    it('crpPool should have a BPool after creation', async () => {
+        await crpPool.createPool();
+        const _bPool = await crpPool._bPool();
+        assert.notEqual(_bPool, ZERO_ADDRESS);
+        bPool = await BPool.at(_bPool);
+    });
+
+    it('should not be able to createPool twice', async () => {
+
+        await truffleAssert.reverts(
+          crpPool.createPool(),
+          'ERR_IS_CREATED',
+        );
+    });
+
+    it('BPool should have matching swap fee', async () => {
+        const deployedSwapFee = await bPool.getSwapFee();
+        assert.equal(swapFee, deployedSwapFee);
+    });
+
+    it('BPool should have public swaps enabled', async () => {
+        const isPublicSwap = await bPool.isPublicSwap();
+        assert.equal(isPublicSwap, true);
+    });
+
+    it('BPool should have initial token balances', async () => {
+        const _bPool = await crpPool._bPool();
+
+        let adminXYZBalance = await xyz.balanceOf.call(admin);
+        let bPoolXYZBalance = await xyz.balanceOf.call(_bPool);
+        let adminWethBalance = await weth.balanceOf.call(admin);
+        let bPoolWethBalance = await weth.balanceOf.call(_bPool);
+        let adminDaiBalance = await dai.balanceOf.call(admin);
+        let bPoolDaiBalance = await dai.balanceOf.call(_bPool);
+
+        assert.equal(adminXYZBalance, toWei('20000'));
+        assert.equal(bPoolXYZBalance, toWei('80000'));
+        assert.equal(adminWethBalance, toWei('60'));
+        assert.equal(bPoolWethBalance, toWei('40'));
+        assert.equal(adminDaiBalance, toWei('5000'));
+        assert.equal(bPoolDaiBalance, toWei('10000'));
+    })
+
+    it('BPool should have initial token weights', async () => {
+        let xyzWeight = await bPool.getDenormalizedWeight.call(xyz.address);
+        let wethWeight = await bPool.getDenormalizedWeight.call(weth.address);
+        let daiWeight = await bPool.getDenormalizedWeight.call(dai.address);
+
+        assert.equal(xyzWeight, toWei('12'));
+        assert.equal(wethWeight, toWei('1.5'));
+        assert.equal(daiWeight, toWei('1.5'));
+    })
+
+    it('Admin should have initial BPT', async () => {
+        let adminBPTBalance = await crpPool.balanceOf.call(admin);
+        assert.equal(adminBPTBalance, toWei('100'));
+    })
+
+});

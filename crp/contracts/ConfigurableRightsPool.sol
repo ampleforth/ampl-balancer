@@ -73,7 +73,7 @@ contract ConfigurableRightsPool is PCToken {
     uint256 private _startBlock;
     uint256 private _endBlock;
     uint private _minimumWeightChangeBlockPeriod;
-    uint private _addTokenTimeLockInBLocks; // Number of blocks that adding a token requires to wait 
+    uint private _addTokenTimeLockInBLocks; // Number of blocks that adding a token requires to wait
     bool[4] private _rights; // TODO: consider making all public so we don't need getter functions
 
     address private _commitNewToken;
@@ -83,7 +83,7 @@ contract ConfigurableRightsPool is PCToken {
 
     IBFactory public _bFactory;
     IBPool public _bPool;
-    
+
 
     constructor(
         address factoryAddress,
@@ -106,9 +106,9 @@ contract ConfigurableRightsPool is PCToken {
         _minimumWeightChangeBlockPeriod = minimumWeightChangeBlockPeriod;
         _addTokenTimeLockInBLocks = addTokenTimeLockInBLocks;
         _rights = rights;
-    } 
+    }
 
-    // TODO: This function can probably be eliminated 
+    // TODO: This function can probably be eliminated
     function getDenormalizedWeight(address token)
         external view
         _viewlock_
@@ -122,7 +122,7 @@ contract ConfigurableRightsPool is PCToken {
         external
         _logs_
         _lock_
-    { 
+    {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         require(_rights[1], "ERR_NOT_CONFIGURABLE_SWAP_FEE");
         _bPool.setSwapFee(swapFee);
@@ -161,7 +161,7 @@ contract ConfigurableRightsPool is PCToken {
         external
         _logs_
         _lock_
-    { 
+    {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         require(!_smartPoolFinalized, "ERR_SMART_POOL_ALREADY_FINALIZED");
         _smartPoolFinalized = true;
@@ -175,7 +175,6 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(block.number >= _startBlock, "ERR_START_BLOCK");
         require(!_created, "ERR_IS_CREATED");
-
 
         // Deploy new BPool
         _bPool = _bFactory.newBPool();
@@ -202,9 +201,9 @@ contract ConfigurableRightsPool is PCToken {
     }
 
     // Notice Balance is not an input (like with rebind on BPool) since we will require prices not to change.
-    // This is achieved by forcing balances to change proportionally to weights, so that prices don't change. 
+    // This is achieved by forcing balances to change proportionally to weights, so that prices don't change.
     // If prices could be changed, this would allow the controller to drain the pool by arbing price changes.
-    function updateWeight(address token, uint256 newWeight) 
+    function updateWeight(address token, uint256 newWeight)
         external
         _logs_
         _lock_
@@ -255,7 +254,7 @@ contract ConfigurableRightsPool is PCToken {
             _pullPoolShare(msg.sender, poolShares);
             _burnPoolShare(poolShares);
         }
-        else{ // This means the controller will deposit tokens to keep the price. This means they will be minted and given PCTokens         
+        else{ // This means the controller will deposit tokens to keep the price. This means they will be minted and given PCTokens
             deltaWeight = bsub(newWeight, currentWeight);
             poolShares = bmul(
                             totalSupply,
@@ -300,8 +299,8 @@ contract ConfigurableRightsPool is PCToken {
             require(newWeights[i] >= MIN_WEIGHT, "ERR_WEIGHT_BELOW_MIN");
             weightsSum += newWeights[i];
         }
-        require(weightsSum <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");         
-        
+        require(weightsSum <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
+
         if(block.number>startBlock){ // This means the weight update should start ASAP
             _startBlock = block.number; // This prevents a big jump in weights if block.number>startBlock
         }
@@ -335,7 +334,7 @@ contract ConfigurableRightsPool is PCToken {
         }
         else{
             minBetweenEndBlockAndThisBlock = block.number;
-        }    
+        }
 
         uint blockPeriod = bsub(_endBlock, _startBlock);
         uint weightDelta;
@@ -369,11 +368,11 @@ contract ConfigurableRightsPool is PCToken {
         _logs_
         _lock_
     {
-        require(msg.sender == _controller, "ERR_NOT_CONTROLLER");        
+        require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
         require(denormalizedWeight <= MAX_WEIGHT, "ERR_WEIGHT_ABOVE_MAX");
         require(denormalizedWeight >= MIN_WEIGHT, "ERR_WEIGHT_BELOW_MIN");
-   
+
         require(_bPool.getTotalDenormalizedWeight() + denormalizedWeight <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
 
 
@@ -388,7 +387,7 @@ contract ConfigurableRightsPool is PCToken {
         _logs_
         _lock_
     {
-        require(msg.sender == _controller, "ERR_NOT_CONTROLLER");        
+        require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
         require(bsub(block.number,_commitBlock)>=_addTokenTimeLockInBLocks ,"ERR_TIMELOCK_STILL_COUNTING");
 
@@ -419,7 +418,7 @@ contract ConfigurableRightsPool is PCToken {
         _logs_
         _lock_
     {
-        require(msg.sender == _controller, "ERR_NOT_CONTROLLER");        
+        require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
         uint totalSupply = totalSupply();
 
