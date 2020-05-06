@@ -52,8 +52,8 @@ Applys above committed token & mints pool shares.
 
 Configurable Rights Pool contract.
 - Should it have a getController function?
-- Is INIT_POOL_SUPPLY correct?
-- Should _rights be public so people know what settings are?
+- Is INIT_POOL_SUPPLY correct? Should it be configurable?
+- Should _rights be public so people can query what settings are?
 - Why max total weight 50?
 - Should commitAddToken on already bound token be allowed? applyAddToken() reverts but seems like a waste?
 

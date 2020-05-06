@@ -36,6 +36,7 @@ contract('configurableAddRemoveTokens', async (accounts) => {
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
     const addTokenTimeLockInBLocks = 10;
     const minimumWeightChangeBlockPeriod = 10;
+    const permissions = [false, false, false, true] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
 
     before(async () => {
         /*
@@ -67,27 +68,29 @@ contract('configurableAddRemoveTokens', async (accounts) => {
         await abc.mint(admin, toWei('100000'));
         await asd.mint(admin, toWei('100000'));
 
+        const tokenAddresses = [XYZ, WETH, DAI];
+
         // Copied this model of code from https://github.com/balancer-labs/balancer-core/blob/5d70da92b1bebaa515254d00a9e064ecac9bd18e/test/math_with_fees.js#L93
         CRPPOOL = await crpFactory.newCrp.call(
             bfactory.address,
-            [XYZ, WETH, DAI],
+            tokenAddresses,
             startBalances,
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
             addTokenTimeLockInBLocks,
-            [false, false, false, true] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+            permissions
         );
 
         await crpFactory.newCrp(
             bfactory.address,
-            [XYZ, WETH, DAI],
+            tokenAddresses,
             startBalances,
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
             addTokenTimeLockInBLocks,
-            [false, false, false, true] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+            permissions
         );
 
         crpPool = await ConfigurableRightsPool.at(CRPPOOL);
@@ -334,13 +337,6 @@ contract('configurableAddRemoveTokens', async (accounts) => {
         assert.equal(xyzWeight, toWei('12'));
         assert.equal(wethWeight, toWei('1.5'));
         assert.equal(abcWeight, toWei('1.5'));
-    });
-
-    it('Configurable weight should revert because non-permissioned', async () => {
-        await truffleAssert.reverts(
-          crpPool.updateWeight(xyz.address, toWei('13')),
-          'ERR_NOT_CONFIGURABLE_WEIGHTS',
-        );
     });
 
     it('Set public swap should revert because non-permissioned', async () => {
