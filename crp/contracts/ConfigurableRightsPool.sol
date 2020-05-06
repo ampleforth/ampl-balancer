@@ -78,7 +78,7 @@ contract ConfigurableRightsPool is PCToken {
 
     address private _commitNewToken;
     uint private _commitNewBalance;
-    uint private _commitNewDenormalizedWeigth;
+    uint private _commitNewDenormalizedWeight;
     uint private _commitBlock;
 
     IBFactory public _bFactory;
@@ -375,10 +375,9 @@ contract ConfigurableRightsPool is PCToken {
 
         require(_bPool.getTotalDenormalizedWeight() + denormalizedWeight <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
 
-
         _commitNewToken = token;
         _commitNewBalance = balance;
-        _commitNewDenormalizedWeigth = denormalizedWeight;
+        _commitNewDenormalizedWeight = denormalizedWeight;
         _commitBlock = block.number;
     }
 
@@ -389,14 +388,14 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
-        require(bsub(block.number,_commitBlock)>=_addTokenTimeLockInBLocks ,"ERR_TIMELOCK_STILL_COUNTING");
+        require(bsub(block.number, _commitBlock) >= _addTokenTimeLockInBLocks, "ERR_TIMELOCK_STILL_COUNTING");
 
         uint totalSupply = totalSupply();
 
         uint poolShares = bdiv(
                             bmul(
                                 totalSupply,
-                                _commitNewDenormalizedWeigth
+                                _commitNewDenormalizedWeight
                                 ),
                             _bPool.getTotalDenormalizedWeight()
                             );
@@ -406,11 +405,10 @@ contract ConfigurableRightsPool is PCToken {
         require(xfer, "ERR_ERC20_FALSE");
         // Now with the tokens this contract can bind them to the pool it controls
         IERC20(_commitNewToken).approve(address(_bPool), uint(-1));   // Approves bPool to pull from this controller
-        _bPool.bind(_commitNewToken, _commitNewBalance, _commitNewDenormalizedWeigth);
+        _bPool.bind(_commitNewToken, _commitNewBalance, _commitNewDenormalizedWeight);
 
         _mintPoolShare(poolShares);
         _pushPoolShare(msg.sender, poolShares);
-
     }
 
     function removeToken(address token)

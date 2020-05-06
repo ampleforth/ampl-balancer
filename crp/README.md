@@ -14,8 +14,8 @@ Creates new ConfigurableRightsPools with caller as contract controller.
 * `uint256[] startBalances` - Array of initial balances for the tokens above.
 * `uint256[] startWeights` - Array of initial weights for the tokens above.
 * `uint swapFee` - Initial swap fee for the pool.
-* `uint minimumWeightChangeBlockPeriod` - ???????
-* `uint addTokenTimeLockInBLocks` - ???????
+* `uint minimumWeightChangeBlockPeriod` - Amount of blocks that have to pass before a new weight can be applied.
+* `uint addTokenTimeLockInBLocks` - Amount of blocks that have to pass before a new commited token can be applied.
 *  `bool[4] rights` - Bool array of rights. These are - [pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens] Set for true to allow.
 
 ###### Response
@@ -38,10 +38,24 @@ await crpFactory.newCrp(
 
 ### ConfigurableRightsPool.sol
 
+commitAddToken(address token, uint balance, uint denormalizedWeight)
+
+Precommits a new token setting:
+_commitNewToken = token;
+_commitNewBalance = balance;
+_commitNewDenormalizedWeight = denormalizedWeight;
+_commitBlock = block.number;
+
+applyAddToken()
+Applys above committed token & mints pool shares.
+
+
 Configurable Rights Pool contract.
 - Should it have a getController function?
 - Is INIT_POOL_SUPPLY correct?
 - Should _rights be public so people know what settings are?
+- Why max total weight 50?
+- Should commitAddToken on already bound token be allowed? applyAddToken() reverts but seems like a waste?
 
 ### PCToken.sol
 
