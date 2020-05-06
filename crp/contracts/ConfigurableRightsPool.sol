@@ -223,7 +223,7 @@ contract ConfigurableRightsPool is PCToken {
         uint totalSupply = totalSupply();
         uint totalWeight = _bPool.getTotalDenormalizedWeight();
 
-        require(badd(totalWeight,bsub(newWeight,currentWeight))<=MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
+        require(badd(totalWeight, bsub(newWeight,currentWeight)) <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
 
         if(newWeight<currentWeight){ // This means the controller will withdraw tokens to keep price. This means they need to redeem PCTokens
             deltaWeight = bsub(currentWeight, newWeight);
@@ -301,7 +301,7 @@ contract ConfigurableRightsPool is PCToken {
         }
         require(weightsSum <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
 
-        if(block.number>startBlock){ // This means the weight update should start ASAP
+        if(block.number > startBlock){ // This means the weight update should start ASAP
             _startBlock = block.number; // This prevents a big jump in weights if block.number>startBlock
         }
         else{
@@ -312,7 +312,7 @@ contract ConfigurableRightsPool is PCToken {
         _newWeights = newWeights;
 
         // Prevent weights to be changed in less than the minimum weight change period.
-        require(bsub(_endBlock,_startBlock)>=_minimumWeightChangeBlockPeriod, "ERR_WEIGHT_CHANGE_PERIOD_BELOW_MIN");
+        require(bsub(_endBlock, _startBlock) >= _minimumWeightChangeBlockPeriod, "ERR_WEIGHT_CHANGE_PERIOD_BELOW_MIN");
 
         for (uint i = 0; i < _tokens.length; i++) {
             _startWeights[i] = _bPool.getDenormalizedWeight(_tokens[i]); // startWeights are current weights

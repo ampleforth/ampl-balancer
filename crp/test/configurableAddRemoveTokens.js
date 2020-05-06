@@ -8,7 +8,6 @@ const { time } = require("@openzeppelin/test-helpers");
 
 contract('configurableAddRemoveTokens', async (accounts) => {
     const admin = accounts[0];
-    const nonAdmin = accounts[1];
     const { toWei } = web3.utils;
     const { fromWei } = web3.utils;
 
@@ -262,7 +261,6 @@ contract('configurableAddRemoveTokens', async (accounts) => {
         assert.equal(bPoolWethBalance, toWei('40'));
         assert.equal(bPoolDaiBalance, toWei('10000'));
 
-        // Confirm all other weights and balances?
         let xyzWeight = await bPool.getDenormalizedWeight.call(xyz.address);
         let wethWeight = await bPool.getDenormalizedWeight.call(weth.address);
         let daiWeight = await bPool.getDenormalizedWeight.call(dai.address);
@@ -371,6 +369,23 @@ contract('configurableAddRemoveTokens', async (accounts) => {
           crpPool.setSwapFee(toWei('0.01')),
           'ERR_NOT_CONFIGURABLE_SWAP_FEE',
         );
+    });
+
+    it('Should fail when adding a token without enough token balance', async () => {
+        const block = await web3.eth.getBlock("latest");
+        applyAddTokenValidBlock = block.number + addTokenTimeLockInBLocks;
+        console.log("Block commitAddToken for DAI: " + block.number);
+        console.log("applyAddToken valid block: " + applyAddTokenValidBlock);
+        await crpPool.commitAddToken(DAI, toWei('150000'), toWei('1.5'));
+
+        let advanceBlocks = addTokenTimeLockInBLocks + 2;
+        while(--advanceBlocks) await time.advanceBlock();
+
+        await truffleAssert.reverts(
+          crpPool.applyAddToken(),
+          'ERR_INSUFFICIENT_BAL',
+        );
+
     });
 
     // ??????? other weight edge cases

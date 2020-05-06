@@ -36,26 +36,33 @@ await crpFactory.newCrp(
 );
 ```
 
+- Is above documentation style worth continuing for rest?
+
 ### ConfigurableRightsPool.sol
 
 commitAddToken(address token, uint balance, uint denormalizedWeight)
-
-Precommits a new token setting:
-_commitNewToken = token;
-_commitNewBalance = balance;
-_commitNewDenormalizedWeight = denormalizedWeight;
-_commitBlock = block.number;
+- Precommits a new token that can be applied addTokenTimeLockInBLocks blocks in the future.
 
 applyAddToken()
-Applys above committed token & mints pool shares.
+- Applies above committed token & mints pool shares if addTokenTimeLockInBLocks blocks in the future.
+
+removeToken(address token)
+Removes an existing token and returns balance to controller.
+
+upDateWeight(address token, uint256 newWeight)
+Updates weight for given token but keeps prices the same. Balances of token will change so user must have enough.
+
+
 
 
 Configurable Rights Pool contract.
 - Should it have a getController function?
-- Is INIT_POOL_SUPPLY correct? Should it be configurable?
+- Is INIT_POOL_SUPPLY correct - Should it be configurable?
 - Should _rights be public so people can query what settings are?
 - Why max total weight 50?
 - Should commitAddToken on already bound token be allowed? applyAddToken() reverts but seems like a waste?
+- Change commitAddToken to commitNewToken? (Then applyAddToken to applyNewToken)
+
 
 ### PCToken.sol
 
