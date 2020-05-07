@@ -154,6 +154,10 @@ contract('configurableWeights', async (accounts) => {
             let wethWeight = await bPool.getDenormalizedWeight.call(weth.address);
             let daiWeight = await bPool.getDenormalizedWeight.call(dai.address);
 
+            let xyzStartSpotPrice = await bPool.getSpotPrice.call(weth.address, xyz.address);
+            let daiStartSpotPrice = await bPool.getSpotPrice.call(weth.address, dai.address);
+            let xdStartSpotPrice = await bPool.getSpotPrice.call(xyz.address, dai.address);
+
             assert.equal(xyzWeight, toWei(startingXyzWeight));
             assert.equal(wethWeight, toWei(startingWethWeight));
             assert.equal(daiWeight, toWei(startingDaiWeight));
@@ -181,6 +185,14 @@ contract('configurableWeights', async (accounts) => {
             assert.equal(xyzWeight, toWei(startingXyzWeight));
             assert.equal(wethWeight, toWei(updatedWethWeight));
             assert.equal(daiWeight, toWei(startingDaiWeight));
+
+            let xyzUpdatedSpotPrice = await bPool.getSpotPrice.call(weth.address, xyz.address);
+            let daiUpdatedSpotPrice = await bPool.getSpotPrice.call(weth.address, dai.address);
+            let xdUpdatedSpotPrice = await bPool.getSpotPrice.call(xyz.address, dai.address);
+
+            assert.equal(fromWei(xyzStartSpotPrice), fromWei(xyzUpdatedSpotPrice));
+            assert.equal(fromWei(daiStartSpotPrice), fromWei(daiUpdatedSpotPrice));
+            assert.equal(fromWei(xdStartSpotPrice), fromWei(xdUpdatedSpotPrice));
         });
 
         it('Controller should not be able to change weights'+
