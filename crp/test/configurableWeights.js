@@ -290,6 +290,29 @@ contract('configurableWeights', async (accounts) => {
             }
         });
 
+        function newWeight(block, startBlock, endBlock, startWeight, endWeight){
+
+            let minBetweenEndBlockAndThisBlock; // This allows for pokes after endBlock that get weights to endWeights
+            if (block.number > endBlock){
+                minBetweenEndBlockAndThisBlock = endBlock;
+            }
+            else{
+                minBetweenEndBlockAndThisBlock = block.number;
+            }
+
+            let blockPeriod = endBlock - startBlock;
+
+            if (startWeight >= endWeight) {
+              let weightDelta = startWeight - endWeight;
+              let newWeight = startWeight - ((minBetweenEndBlockAndThisBlock - startBlock) * (weightDelta / blockPeriod));
+              return newWeight;
+            }else{
+              let weightDelta = endWeight - startWeight;
+              let newWeight = startWeight + ((minBetweenEndBlockAndThisBlock - startBlock) * (weightDelta / blockPeriod));
+              return newWeight;
+            }
+        }
+
         it('Should run full update cycle, no missed blocks. (anyone can pokeWeights())', async () => {
               // Adjust weights from 12, 3, 1.5 to 3, 6, 6
               let xyzWeight = await crpPool.getDenormalizedWeight(XYZ);
@@ -314,10 +337,10 @@ contract('configurableWeights', async (accounts) => {
                 daiWeight = await crpPool.getDenormalizedWeight(DAI);
 
                 block = await web3.eth.getBlock("latest");
-                let newXyzW = Number(startingXyzWeight) - ((block.number - validStartBlock) * ((Number(startingXyzWeight) - Number(endXyzWeight))/blockPeriod));
-                let newWethW = Number(updatedWethWeight) - ((block.number - validStartBlock) * ((Number(updatedWethWeight) - Number(endWethWeight))/blockPeriod));
-                let newDaiW = Number(startingDaiWeight) - ((block.number - validStartBlock) * ((Number(startingDaiWeight) - Number(endDaiWeight))/blockPeriod));
-                console.log(`${block.number} Weights: ${newXyzW}/${fromWei(xyzWeight)}, ${newWethW}/${wethWeight.toString()}, ${newDaiW}/${daiWeight.toString()}`);
+                let newXyzW = newWeight(block, validStartBlock, validEndBlock, Number(startingXyzWeight), Number(endXyzWeight));
+                let newWethW = newWeight(block, validStartBlock, validEndBlock, Number(updatedWethWeight), Number(endWethWeight));
+                let newDaiW = newWeight(block, validStartBlock, validEndBlock, Number(startingDaiWeight), Number(endDaiWeight));
+                console.log(`${block.number} Weights: ${newXyzW}/${fromWei(xyzWeight)}, ${newWethW}/${fromWei(wethWeight)}, ${newDaiW}/${fromWei(daiWeight)}`);
 
                 let relDif = calcRelativeDiff(newXyzW, fromWei(xyzWeight));
                 assert.isAtMost(relDif.toNumber(), errorDelta);
@@ -345,7 +368,7 @@ contract('configurableWeights', async (accounts) => {
         })
 
         it('Confirm update weights can be run again', async () => {
-            // Adjust weights from 3, 6, 6 to 7, 4, 10
+            // Adjust weights from 3, 6, 6 to 12, 3, 1.5
             let block = await web3.eth.getBlock("latest");
             const startBlock = block.number + 10;
             const endBlock = startBlock + minimumWeightChangeBlockPeriod;
@@ -353,9 +376,9 @@ contract('configurableWeights', async (accounts) => {
             startingXyzWeight = '3';
             startingWethWeight = '6';
             startingDaiWeight = '6';
-            endXyzWeight = '7';
-            endWethWeight = '4';
-            endDaiWeight = '10';
+            endXyzWeight = '12';
+            endWethWeight = '3';
+            endDaiWeight = '1.5';
 
             let endWeights = [toWei(endXyzWeight), toWei(endWethWeight), toWei(endDaiWeight)];
             await crpPool.updateWeightsGradually(endWeights, startBlock, endBlock);
@@ -385,10 +408,73 @@ contract('configurableWeights', async (accounts) => {
               daiWeight = await crpPool.getDenormalizedWeight(DAI);
 
               block = await web3.eth.getBlock("latest");
-              let newXyzW = Number(startingXyzWeight) - ((block.number - startBlock) * ((Number(startingXyzWeight) - Number(endXyzWeight))/blockPeriod));
-              let newWethW = Number(startingWethWeight) - ((block.number - startBlock) * ((Number(startingWethWeight) - Number(endWethWeight))/blockPeriod));
-              let newDaiW = Number(startingDaiWeight) - ((block.number - startBlock) * ((Number(startingDaiWeight) - Number(endDaiWeight))/blockPeriod));
-              console.log(`${block.number} Weights: ${newXyzW}/${fromWei(xyzWeight)}, ${newWethW}/${wethWeight.toString()}, ${newDaiW}/${daiWeight.toString()}`);
+
+              let newXyzW = newWeight(block, startBlock, endBlock, Number(startingXyzWeight), Number(endXyzWeight));
+              let newWethW = newWeight(block, startBlock, endBlock, Number(startingWethWeight), Number(endWethWeight));
+              let newDaiW = newWeight(block, startBlock, endBlock, Number(startingDaiWeight), Number(endDaiWeight));
+              console.log(`${block.number} Weights: ${newXyzW}/${fromWei(xyzWeight)}, ${newWethW}/${fromWei(wethWeight)}, ${newDaiW}/${fromWei(daiWeight)}`);
+
+              let relDif = calcRelativeDiff(newXyzW, fromWei(xyzWeight));
+              assert.isAtMost(relDif.toNumber(), errorDelta);
+              relDif = calcRelativeDiff(newWethW, fromWei(wethWeight));
+              assert.isAtMost(relDif.toNumber(), errorDelta);
+              relDif = calcRelativeDiff(newDaiW, fromWei(daiWeight));
+              assert.isAtMost(relDif.toNumber(), errorDelta);
+            }
+
+            assert.equal(xyzWeight, toWei(endXyzWeight));
+            assert.equal(wethWeight, toWei(endWethWeight));
+            assert.equal(daiWeight, toWei(endDaiWeight));
+        });
+
+        it('Confirm update weights can be run with expired start block', async () => {
+            // When the start block has already expired then poking has to catch up
+            // Adjust weights from 12, 3, 1.5 to 3, 6, 6
+            let block = await web3.eth.getBlock("latest");
+            const startBlock = block.number - 2;
+            // When updateWeightsGradually is called with start block < current block it sets start block to current
+            const realStartingBlock = block.number + 1;
+            const endBlock = startBlock + 2 * minimumWeightChangeBlockPeriod;
+
+            startingXyzWeight = '12';
+            startingWethWeight = '3';
+            startingDaiWeight = '1.5';
+            endXyzWeight = '3';
+            endWethWeight = '6';
+            endDaiWeight = '6';
+
+            let endWeights = [toWei(endXyzWeight), toWei(endWethWeight), toWei(endDaiWeight)];
+            await crpPool.updateWeightsGradually(endWeights, startBlock, endBlock);
+
+            let xyzWeight = await crpPool.getDenormalizedWeight(XYZ);
+            let wethWeight = await crpPool.getDenormalizedWeight(WETH);
+            let daiWeight = await crpPool.getDenormalizedWeight(DAI);
+            block = await web3.eth.getBlock("latest");
+            console.log(`Last Block: ${block.number} weights: ${xyzWeight.toString()} ${wethWeight.toString()} ${daiWeight.toString()}`);
+
+            // Starting weights
+            assert.equal(xyzWeight, toWei(startingXyzWeight));
+            assert.equal(wethWeight, toWei(startingWethWeight));
+            assert.equal(daiWeight, toWei(startingDaiWeight));
+
+            const blockPeriod = endBlock - realStartingBlock;
+            while(block.number < endBlock){
+              try{
+                await crpPool.pokeWeights({from: accounts[3]});
+              }catch(err){
+                block = await web3.eth.getBlock("latest");
+                continue;
+              }
+
+              xyzWeight = await crpPool.getDenormalizedWeight(XYZ);
+              wethWeight = await crpPool.getDenormalizedWeight(WETH);
+              daiWeight = await crpPool.getDenormalizedWeight(DAI);
+
+              block = await web3.eth.getBlock("latest");
+              let newXyzW = newWeight(block, realStartingBlock, endBlock, Number(startingXyzWeight), Number(endXyzWeight));
+              let newWethW = newWeight(block, realStartingBlock, endBlock, Number(startingWethWeight), Number(endWethWeight));
+              let newDaiW = newWeight(block, realStartingBlock, endBlock, Number(startingDaiWeight), Number(endDaiWeight));
+              console.log(`${block.number} Weights: ${newXyzW}/${fromWei(xyzWeight)}, ${newWethW}/${fromWei(wethWeight)}, ${newDaiW}/${fromWei(daiWeight)}`);
 
               let relDif = calcRelativeDiff(newXyzW, fromWei(xyzWeight));
               assert.isAtMost(relDif.toNumber(), errorDelta);
@@ -404,6 +490,5 @@ contract('configurableWeights', async (accounts) => {
         });
 
         // weight poked after start/end
-        // check price remains same
     });
 });
