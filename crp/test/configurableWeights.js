@@ -574,5 +574,40 @@ contract('configurableWeights', async (accounts) => {
             assert.equal(daiWeight, toWei(endDaiWeight));
         });
 
+        it('Set swap fee should revert because non-permissioned', async () => {
+            await truffleAssert.reverts(
+              crpPool.setSwapFee(toWei('0.01')),
+              'ERR_NOT_CONFIGURABLE_SWAP_FEE',
+            );
+        });
+
+        it('Set public swap should revert because non-permissioned', async () => {
+            await truffleAssert.reverts(
+              crpPool.setPublicSwap(false),
+              'ERR_NOT_PAUSABLE_SWAP',
+            );
+        });
+
+        it('Remove token should revert because non-permissioned', async () => {
+            await truffleAssert.reverts(
+              crpPool.removeToken(DAI),
+              'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
+            );
+        });
+
+        it('Commit add token should revert because non-permissioned', async () => {
+            await truffleAssert.reverts(
+              crpPool.commitAddToken(DAI, toWei('150000'), toWei('1.5')),
+              'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
+            );
+        });
+
+        it('Apply add token should revert because non-permissioned', async () => {
+            await truffleAssert.reverts(
+              crpPool.applyAddToken(),
+              'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
+            );
+        });
+
     });
 });

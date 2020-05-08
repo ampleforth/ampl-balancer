@@ -166,4 +166,27 @@ contract('crpPoolTests', async (accounts) => {
         let adminBPTBalance = await crpPool.balanceOf.call(admin);
         assert.equal(adminBPTBalance, toWei('100'));
     })
+
+    it('JoinPool should revert if smart pool is not finalized yet', async () => {
+        truffleAssert.reverts(
+            crpPool.joinPool(toWei('1000')),
+            "ERR_SMART_POOL_NOT_FINALIZED");
+    });
+
+    it('JoinPool should not revert if smart pool is finalized', async () => {
+        await crpPool.finalizeSmartPool();
+        await crpPool.joinPool(toWei('1'));
+
+        let balance = await crpPool.balanceOf.call(admin);
+
+        assert.equal(balance, toWei('101'));
+        // !!!!!!! Confirm account balances for tokens is correct
+    });
+
+    it('JoinPool should revert if user does not have allowance to join pool', async () => {
+        truffleAssert.reverts(
+              crpPool.joinPool(toWei('1'), { from: nonAdmin }),
+              'ERR_BTOKEN_BAD_CALLER',
+        );
+    });
 });
