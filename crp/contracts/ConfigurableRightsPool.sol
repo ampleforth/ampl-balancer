@@ -114,7 +114,6 @@ contract ConfigurableRightsPool is PCToken {
         _viewlock_
         returns (uint)
     {
-
         return _bPool.getDenormalizedWeight(token);
     }
 
@@ -297,7 +296,7 @@ contract ConfigurableRightsPool is PCToken {
         for (uint i = 0; i < _tokens.length; i++) {
             require(newWeights[i] <= MAX_WEIGHT, "ERR_WEIGHT_ABOVE_MAX");
             require(newWeights[i] >= MIN_WEIGHT, "ERR_WEIGHT_BELOW_MIN");
-            weightsSum += newWeights[i];
+            weightsSum = badd(weightsSum, newWeights[i]);
         }
         require(weightsSum <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
 
@@ -373,7 +372,7 @@ contract ConfigurableRightsPool is PCToken {
         require(denormalizedWeight <= MAX_WEIGHT, "ERR_WEIGHT_ABOVE_MAX");
         require(denormalizedWeight >= MIN_WEIGHT, "ERR_WEIGHT_BELOW_MIN");
 
-        require(_bPool.getTotalDenormalizedWeight() + denormalizedWeight <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
+        require(badd(_bPool.getTotalDenormalizedWeight(), denormalizedWeight) <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
 
         _commitNewToken = token;
         _commitNewBalance = balance;

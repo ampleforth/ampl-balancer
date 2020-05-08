@@ -189,4 +189,11 @@ contract('crpPoolTests', async (accounts) => {
               'ERR_BTOKEN_BAD_CALLER',
         );
     });
+
+    // !!!!!!! TO ADD?
+    // setController
+    // finalizeSmartPool
+    // createPool ERR_START_BLOCK
+    // updateWeight up and down?
+    // joinPool, exitPool, joins
 });
