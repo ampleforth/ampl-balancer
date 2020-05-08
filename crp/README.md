@@ -52,6 +52,8 @@ await crpFactory.newCrp(
 - Lint rules added:
 - "no-plusplus": "off"
 - "no-await-in-loop": "off"
+- Changed max-len to warn for console out during weight tests
+- Changed no-continue to warn as used in testing (can change if required)
 
 
 commitAddToken(address token, uint balance, uint denormalizedWeight):
