@@ -49,6 +49,10 @@ await crpFactory.newCrp(
 - Why max total weight 50?
 - Fernando, I noticed some comments in your tests that hinted at strange behaviour. I think the problem was sometime truffleAssert.reverts was sometimes called without 'await' so test would run without blocking.
 
+- Lint rules added:
+- "no-plusplus": "off"
+- "no-await-in-loop": "off"
+
 
 commitAddToken(address token, uint balance, uint denormalizedWeight):
 

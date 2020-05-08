@@ -13,8 +13,7 @@ contract('crpPoolTests', async (accounts) => {
     const admin = accounts[0];
     const nonAdmin = accounts[1];
     const { toWei } = web3.utils;
-    const { fromWei } = web3.utils;
-    const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+    const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
     const MAX = web3.utils.toTwosComplement(-1);
     // These are the intial settings for newCrp:
     const swapFee = toWei('0.003');
@@ -23,19 +22,16 @@ contract('crpPoolTests', async (accounts) => {
     const addTokenTimeLockInBLocks = 10;
     const minimumWeightChangeBlockPeriod = 10;
 
-    let crpFactory, bFactory, bPool, crpPool;
+    let crpFactory; let bFactory; let bPool; let
+        crpPool;
     let CRPPOOL;
     let CRPPOOL_ADDRESS;
     let WETH;
     let DAI;
     let XYZ;
-    let ABC;
-    let ASD;
     let weth;
     let dai;
     let xyz;
-    let abc;
-    let asd;
 
     before(async () => {
         /*
@@ -45,48 +41,43 @@ contract('crpPoolTests', async (accounts) => {
         CRPFactory creates new CRP.
         Admin approves CRP for MAX
         */
-        bfactory = await BFactory.deployed();
+        bFactory = await BFactory.deployed();
         crpFactory = await CRPFactory.deployed();
         xyz = await TToken.new('XYZ', 'XYZ', 18);
         weth = await TToken.new('Wrapped Ether', 'WETH', 18);
         dai = await TToken.new('Dai Stablecoin', 'DAI', 18);
-        abc = await TToken.new('ABC', 'ABC', 18);
-        asd = await TToken.new('ASD', 'ASD', 18);
 
         WETH = weth.address;
         DAI = dai.address;
         XYZ = xyz.address;
-        ABC = abc.address;
-        ASD = asd.address;
 
         // admin balances
         await weth.mint(admin, toWei('100'));
         await dai.mint(admin, toWei('15000'));
         await xyz.mint(admin, toWei('100000'));
-        await abc.mint(admin, toWei('100000'));
-        await asd.mint(admin, toWei('100000'));
 
-        // Copied this model of code from https://github.com/balancer-labs/balancer-core/blob/5d70da92b1bebaa515254d00a9e064ecac9bd18e/test/math_with_fees.js#L93
         CRPPOOL = await crpFactory.newCrp.call(
-            bfactory.address,
+            bFactory.address,
             [XYZ, WETH, DAI],
             startBalances,
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
             addTokenTimeLockInBLocks,
-            [false, false, false, true] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+            [false, false, false, true],
+            // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );
 
         await crpFactory.newCrp(
-            bfactory.address,
+            bFactory.address,
             [XYZ, WETH, DAI],
             startBalances,
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
             addTokenTimeLockInBLocks,
-            [false, false, false, true] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+            [false, false, false, true],
+            // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );
 
         crpPool = await ConfigurableRightsPool.at(CRPPOOL);
@@ -96,31 +87,29 @@ contract('crpPoolTests', async (accounts) => {
         await weth.approve(CRPPOOL_ADDRESS, MAX);
         await dai.approve(CRPPOOL_ADDRESS, MAX);
         await xyz.approve(CRPPOOL_ADDRESS, MAX);
-        await abc.approve(CRPPOOL_ADDRESS, MAX);
-        await asd.approve(CRPPOOL_ADDRESS, MAX);
     });
 
     it('crpPool should have no BPool before creation', async () => {
-        const _bPool = await crpPool._bPool();
-        assert.equal(_bPool, ZERO_ADDRESS);
+        const bPoolAddr = await crpPool.bPool();
+        assert.equal(bPoolAddr, ZERO_ADDRESS);
     });
 
     it('Admin should have no initial BPT', async () => {
-        let adminBPTBalance = await crpPool.balanceOf.call(admin);
+        const adminBPTBalance = await crpPool.balanceOf.call(admin);
         assert.equal(adminBPTBalance, toWei('0'));
-    })
+    });
 
     it('crpPool should have a BPool after creation', async () => {
         await crpPool.createPool();
-        const _bPool = await crpPool._bPool();
-        assert.notEqual(_bPool, ZERO_ADDRESS);
-        bPool = await BPool.at(_bPool);
+        const bPoolAddr = await crpPool.bPool();
+        assert.notEqual(bPoolAddr, ZERO_ADDRESS);
+        bPool = await BPool.at(bPoolAddr);
     });
 
     it('should not be able to createPool twice', async () => {
         await truffleAssert.reverts(
-          crpPool.createPool(),
-          'ERR_IS_CREATED',
+            crpPool.createPool(),
+            'ERR_IS_CREATED',
         );
     });
 
@@ -135,14 +124,14 @@ contract('crpPoolTests', async (accounts) => {
     });
 
     it('BPool should have initial token balances', async () => {
-        const _bPool = await crpPool._bPool();
+        const bPoolAddr = await crpPool.bPool();
 
-        let adminXYZBalance = await xyz.balanceOf.call(admin);
-        let bPoolXYZBalance = await xyz.balanceOf.call(_bPool);
-        let adminWethBalance = await weth.balanceOf.call(admin);
-        let bPoolWethBalance = await weth.balanceOf.call(_bPool);
-        let adminDaiBalance = await dai.balanceOf.call(admin);
-        let bPoolDaiBalance = await dai.balanceOf.call(_bPool);
+        const adminXYZBalance = await xyz.balanceOf.call(admin);
+        const bPoolXYZBalance = await xyz.balanceOf.call(bPoolAddr);
+        const adminWethBalance = await weth.balanceOf.call(admin);
+        const bPoolWethBalance = await weth.balanceOf.call(bPoolAddr);
+        const adminDaiBalance = await dai.balanceOf.call(admin);
+        const bPoolDaiBalance = await dai.balanceOf.call(bPoolAddr);
 
         assert.equal(adminXYZBalance, toWei('20000'));
         assert.equal(bPoolXYZBalance, toWei('80000'));
@@ -150,34 +139,35 @@ contract('crpPoolTests', async (accounts) => {
         assert.equal(bPoolWethBalance, toWei('40'));
         assert.equal(adminDaiBalance, toWei('5000'));
         assert.equal(bPoolDaiBalance, toWei('10000'));
-    })
+    });
 
     it('BPool should have initial token weights', async () => {
-        let xyzWeight = await bPool.getDenormalizedWeight.call(xyz.address);
-        let wethWeight = await bPool.getDenormalizedWeight.call(weth.address);
-        let daiWeight = await bPool.getDenormalizedWeight.call(dai.address);
+        const xyzWeight = await bPool.getDenormalizedWeight.call(xyz.address);
+        const wethWeight = await bPool.getDenormalizedWeight.call(weth.address);
+        const daiWeight = await bPool.getDenormalizedWeight.call(dai.address);
 
         assert.equal(xyzWeight, toWei('12'));
         assert.equal(wethWeight, toWei('1.5'));
         assert.equal(daiWeight, toWei('1.5'));
-    })
+    });
 
     it('Admin should have initial BPT', async () => {
-        let adminBPTBalance = await crpPool.balanceOf.call(admin);
+        const adminBPTBalance = await crpPool.balanceOf.call(admin);
         assert.equal(adminBPTBalance, toWei('100'));
-    })
+    });
 
     it('JoinPool should revert if smart pool is not finalized yet', async () => {
         await truffleAssert.reverts(
             crpPool.joinPool(toWei('1000')),
-            "ERR_SMART_POOL_NOT_FINALIZED");
+            'ERR_SMART_POOL_NOT_FINALIZED',
+        );
     });
 
     it('JoinPool should not revert if smart pool is finalized', async () => {
         await crpPool.finalizeSmartPool();
         await crpPool.joinPool(toWei('1'));
 
-        let balance = await crpPool.balanceOf.call(admin);
+        const balance = await crpPool.balanceOf.call(admin);
 
         assert.equal(balance, toWei('101'));
         // !!!!!!! Confirm account balances for tokens is correct
@@ -185,8 +175,8 @@ contract('crpPoolTests', async (accounts) => {
 
     it('JoinPool should revert if user does not have allowance to join pool', async () => {
         await truffleAssert.reverts(
-              crpPool.joinPool(toWei('1'), { from: nonAdmin }),
-              'ERR_BTOKEN_BAD_CALLER',
+            crpPool.joinPool(toWei('1'), { from: nonAdmin }),
+            'ERR_BTOKEN_BAD_CALLER',
         );
     });
 
