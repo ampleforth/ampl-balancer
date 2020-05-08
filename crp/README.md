@@ -36,33 +36,35 @@ await crpFactory.newCrp(
 );
 ```
 
-- Is above documentation style worth continuing for rest?
+- ??????? ^ Is above documentation style worth continuing for rest? ^
 
 ### ConfigurableRightsPool.sol
 
-commitAddToken(address token, uint balance, uint denormalizedWeight)
-- Precommits a new token that can be applied addTokenTimeLockInBLocks blocks in the future.
-
-applyAddToken()
-- Applies above committed token & mints pool shares if addTokenTimeLockInBLocks blocks in the future.
-
-removeToken(address token)
-Removes an existing token and returns balance to controller.
-
-upDateWeight(address token, uint256 newWeight)
-Updates weight for given token but keeps prices the same. Balances of token will change so user must have enough.
-
-
-
-
-Configurable Rights Pool contract.
-- Should it have a getController function?
-- Is INIT_POOL_SUPPLY correct - Should it be configurable?
+??????? Configurable Rights Pool contract:
+- Should it have a getController function for public query?
+- Should INIT_POOL_SUPPLY be hard coded to 100? Should it be configurable? Or StablePool we set to total of input tokens?
 - Should _rights be public so people can query what settings are?
-- Why max total weight 50?
 - Should commitAddToken on already bound token be allowed? applyAddToken() reverts but seems like a waste?
 - Change commitAddToken to commitNewToken? (Then applyAddToken to applyNewToken)
+- Why max total weight 50?
+- Fernando, I noticed some comments in your tests that hinted at strange behaviour. I think the problem was sometime truffleAssert.reverts was sometimes called without 'await' so test would run without blocking.
 
+
+commitAddToken(address token, uint balance, uint denormalizedWeight):
+
+Precommits a new token that can be applied addTokenTimeLockInBLocks blocks in the future.
+
+applyAddToken():
+
+Applies above committed token & mints pool shares if addTokenTimeLockInBLocks blocks in the future.
+
+removeToken(address token):
+
+Removes an existing token and returns balance to controller.
+
+upDateWeight(address token, uint256 newWeight):
+
+Updates weight for given token but keeps prices the same. Balances of token will change so user must have enough.
 
 ### PCToken.sol
 
@@ -71,6 +73,7 @@ Balancer Smart Pool token. ERC20 with some extra math functions.
 ### IBFactory.sol
 
 Interface for [Balancer Factory](https://github.com/balancer-labs/balancer-core/blob/master/contracts/BFactory.sol).
+
 
 ## Getting Started - Local Testing
 

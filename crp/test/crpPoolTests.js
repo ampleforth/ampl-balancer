@@ -168,7 +168,7 @@ contract('crpPoolTests', async (accounts) => {
     })
 
     it('JoinPool should revert if smart pool is not finalized yet', async () => {
-        truffleAssert.reverts(
+        await truffleAssert.reverts(
             crpPool.joinPool(toWei('1000')),
             "ERR_SMART_POOL_NOT_FINALIZED");
     });
@@ -184,7 +184,7 @@ contract('crpPoolTests', async (accounts) => {
     });
 
     it('JoinPool should revert if user does not have allowance to join pool', async () => {
-        truffleAssert.reverts(
+        await truffleAssert.reverts(
               crpPool.joinPool(toWei('1'), { from: nonAdmin }),
               'ERR_BTOKEN_BAD_CALLER',
         );
