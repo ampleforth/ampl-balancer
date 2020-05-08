@@ -23,8 +23,6 @@ contract CRPFactory {
 
     mapping(address=>bool) private _isCrp;
 
-    constructor() public {}
-
     function isCrp(address b)
         external view returns (bool)
     {
@@ -52,12 +50,12 @@ contract CRPFactory {
             swapFee,
             minimumWeightChangeBlockPeriod,
             addTokenTimeLockInBLocks,
-            rights  
+            rights
         );
         _isCrp[address(crp)] = true;
         emit LOG_NEW_CRP(msg.sender, address(crp));
         crp.setController(msg.sender);
         return crp;
     }
-    
+
 }
