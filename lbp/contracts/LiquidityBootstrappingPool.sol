@@ -70,7 +70,7 @@ contract LiquidityBootstrappingPool is PCToken {
 
     IBFactory public _bFactory;
     IBPool public _bPool;
-    
+
 
     constructor(
         address factoryAddress,
@@ -102,7 +102,7 @@ contract LiquidityBootstrappingPool is PCToken {
         _controller = manager;
     }
 
-    function createPool()
+    function createPool(toWei('100'))
         external
         _logs_
         _lock_
@@ -140,7 +140,7 @@ contract LiquidityBootstrappingPool is PCToken {
         _lock_
     {
         require(_created, "ERR_NOT_CREATED");
-        
+
         for (uint i = 0; i < _tokens.length; i++) {
             uint oldRange = bsub(_endBlock, _startBlock);
             uint newRange = 0;
@@ -152,7 +152,7 @@ contract LiquidityBootstrappingPool is PCToken {
                 newRange = bsub(_endWeights[i], _startWeights[i]);
                 newMin = _startWeights[i];
             }
-            
+
             uint newWeight = badd(bmul(bdiv(bsub(block.number, _startBlock), oldRange), newRange), newMin);
             _bPool.rebind(_tokens[i], _bPool.getBalance(_tokens[i]), newWeight);
         }

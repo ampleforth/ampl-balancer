@@ -124,7 +124,7 @@ contract('configurableWeights', async (accounts) => {
         await dai.approve(CRPPOOL_ADDRESS, MAX);
         await xyz.approve(CRPPOOL_ADDRESS, MAX);
 
-        await crpPool.createPool();
+        await crpPool.createPool(toWei('100'));
     });
 
     describe('updateWeight', () => {

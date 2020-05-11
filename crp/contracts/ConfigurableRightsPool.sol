@@ -54,7 +54,6 @@ contract ConfigurableRightsPool is PCToken {
     }
 
     uint public constant BONE             = 10**18;
-    uint public constant INIT_POOL_SUPPLY = BONE * 100;
 
     uint public constant MIN_WEIGHT        = BONE;
     uint public constant MAX_WEIGHT        = BONE * 50;
@@ -172,7 +171,7 @@ contract ConfigurableRightsPool is PCToken {
         _smartPoolFinalized = true;
     }
 
-    function createPool()
+    function createPool(uint256 initialSupply)
         external
         _logs_
         _lock_
@@ -180,6 +179,7 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(block.number >= _startBlock, "ERR_START_BLOCK");
         require(!_created, "ERR_IS_CREATED");
+        require(initialSupply > 0, "ERR_INIT_SUPPLY");
 
         // Deploy new BPool
         bPool = bFactory.newBPool();
@@ -201,8 +201,8 @@ contract ConfigurableRightsPool is PCToken {
         _created = true;
         bPool.setPublicSwap(true);
 
-        _mintPoolShare(INIT_POOL_SUPPLY);
-        _pushPoolShare(msg.sender, INIT_POOL_SUPPLY);
+        _mintPoolShare(initialSupply);
+        _pushPoolShare(msg.sender, initialSupply);
     }
 
     // Notice Balance is not an input (like with rebind on BPool) since we will require prices not to change.

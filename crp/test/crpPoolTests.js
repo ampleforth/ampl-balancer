@@ -104,8 +104,15 @@ contract('crpPoolTests', async (accounts) => {
         assert.equal(adminBPTBalance, toWei('0'));
     });
 
+    it('crpPool should not createPool with 0 BPT Initial Supply', async () => {
+        await truffleAssert.reverts(
+            crpPool.createPool(toWei('0')),
+            'ERR_INIT_SUPPLY',
+        );
+    });
+
     it('crpPool should have a BPool after creation', async () => {
-        await crpPool.createPool();
+        await crpPool.createPool(toWei('100'));
         const bPoolAddr = await crpPool.bPool();
         assert.notEqual(bPoolAddr, ZERO_ADDRESS);
         bPool = await BPool.at(bPoolAddr);
@@ -113,7 +120,7 @@ contract('crpPoolTests', async (accounts) => {
 
     it('should not be able to createPool twice', async () => {
         await truffleAssert.reverts(
-            crpPool.createPool(),
+            crpPool.createPool(toWei('100')),
             'ERR_IS_CREATED',
         );
     });

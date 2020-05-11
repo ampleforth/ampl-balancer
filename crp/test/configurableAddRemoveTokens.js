@@ -102,7 +102,7 @@ contract('configurableAddRemoveTokens', async (accounts) => {
         await abc.approve(CRPPOOL_ADDRESS, MAX);
         await asd.approve(CRPPOOL_ADDRESS, MAX);
 
-        await crpPool.createPool();
+        await crpPool.createPool(toWei('100'));
     });
 
     it('Controller should not be able to commitAddToken with invalid weight', async () => {

@@ -88,7 +88,7 @@ contract('configurableSwapFee', async (accounts) => {
         await dai.approve(CRPPOOL_ADDRESS, MAX);
         await xyz.approve(CRPPOOL_ADDRESS, MAX);
 
-        await crpPool.createPool();
+        await crpPool.createPool(toWei('100'));
     });
 
     it('Non Controller account should not be able to change swapFee', async () => {

@@ -85,7 +85,7 @@ contract('pausableSwap', async (accounts) => {
         await dai.approve(CRPPOOL_ADDRESS, MAX);
         await xyz.approve(CRPPOOL_ADDRESS, MAX);
 
-        await crpPool.createPool();
+        await crpPool.createPool(toWei('100'));
     });
 
     it('ConfigurableRightsPool isPublicSwap should be true after creation', async () => {

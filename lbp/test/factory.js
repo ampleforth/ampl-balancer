@@ -45,14 +45,14 @@ contract('LBPFactory', async (accounts) => {
                 [toWei('5'), toWei('5'), toWei('5')],
                 [10, 1000, toWei('0.03')]
             );
-            
+
             CONTROLLER = controller.address;
 
             await weth.approve(CONTROLLER, MAX);
             await dai.approve(CONTROLLER, MAX);
             await xyz.approve(CONTROLLER, MAX);
 
-            await controller.createPool();
+            await controller.createPool(toWei('100'));
 
         });
 
