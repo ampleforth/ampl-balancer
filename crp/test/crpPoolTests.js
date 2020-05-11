@@ -94,6 +94,11 @@ contract('crpPoolTests', async (accounts) => {
         assert.equal(bPoolAddr, ZERO_ADDRESS);
     });
 
+    it('crpPool should have admin account as controller', async () => {
+        const controllerAddr = await crpPool.getController.call();
+        assert.equal(controllerAddr, admin);
+    });
+
     it('Admin should have no initial BPT', async () => {
         const adminBPTBalance = await crpPool.balanceOf.call(admin);
         assert.equal(adminBPTBalance, toWei('0'));

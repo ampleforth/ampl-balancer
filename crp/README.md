@@ -14,7 +14,7 @@ Creates new ConfigurableRightsPools with caller as contract controller.
 * `uint256[] startBalances` - Array of initial balances for the tokens above.
 * `uint256[] startWeights` - Array of initial weights for the tokens above.
 * `uint swapFee` - Initial swap fee for the pool.
-* `uint minimumWeightChangeBlockPeriod` - Amount of blocks that have to pass before a new weight can be applied.
+* `uint minimumWeightChangeBlockPeriod` - Total duration of the changeUpdate duration. So you cannot call updateWeightsGradually with a duration (endBlock - startBlock) < minimumWeightChangeBlockPeriod.
 * `uint addTokenTimeLockInBLocks` - Amount of blocks that have to pass before a new commited token can be applied.
 *  `bool[4] rights` - Bool array of rights. These are - [pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens] Set for true to allow.
 
@@ -39,22 +39,6 @@ await crpFactory.newCrp(
 - ??????? ^ Is above documentation style worth continuing for rest? ^
 
 ### ConfigurableRightsPool.sol
-
-??????? Configurable Rights Pool contract:
-- Should it have a getController function for public query?
-- Should INIT_POOL_SUPPLY be hard coded to 100? Should it be configurable? Or StablePool we set to total of input tokens?
-- Should _rights be public so people can query what settings are?
-- Should commitAddToken on already bound token be allowed? applyAddToken() reverts but seems like a waste?
-- Change commitAddToken to commitNewToken? (Then applyAddToken to applyNewToken)
-- Why max total weight 50?
-- Fernando, I noticed some comments in your tests that hinted at strange behaviour. I think the problem was sometime truffleAssert.reverts was sometimes called without 'await' so test would run without blocking.
-
-- Lint rules added:
-- "no-plusplus": "off"
-- "no-await-in-loop": "off"
-- Changed max-len to warn for console out during weight tests
-- Changed no-continue to warn as used in testing (can change if required)
-
 
 commitAddToken(address token, uint balance, uint denormalizedWeight):
 

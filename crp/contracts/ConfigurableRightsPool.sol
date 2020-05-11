@@ -107,6 +107,13 @@ contract ConfigurableRightsPool is PCToken {
         _rights = rights;
     }
 
+    function getController()
+        external view
+        returns (address)
+    {
+        return _controller;
+    }
+
     // TODO: This function can probably be eliminated
     function getDenormalizedWeight(address token)
         external view
