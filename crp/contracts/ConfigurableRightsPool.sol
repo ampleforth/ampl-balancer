@@ -128,7 +128,6 @@ contract ConfigurableRightsPool is PCToken {
         return _rights;
     }
 
-    // TODO: This function can probably be eliminated
     function getDenormalizedWeight(address token)
         external view
         _viewlock_
@@ -166,7 +165,6 @@ contract ConfigurableRightsPool is PCToken {
         bPool.setPublicSwap(publicSwap);
     }
 
-    // TODO: this function can probably be removed as the bPool can be accessed directly
     function isPublicSwap()
         external
         _logs_
@@ -565,7 +563,7 @@ contract ConfigurableRightsPool is PCToken {
         return poolAmountOut;
     }
 
-    function joinswapPoolAmountOut(uint poolAmountOut, address tokenIn)
+    function joinswapPoolAmountOut(address tokenIn, uint poolAmountOut)
         external
         _logs_
         _lock_
@@ -593,7 +591,7 @@ contract ConfigurableRightsPool is PCToken {
         return tokenAmountIn;
     }
 
-    function exitswapPoolAmountIn(uint poolAmountIn, address tokenOut)
+    function exitswapPoolAmountIn(address tokenOut, uint poolAmountIn)
         external
         _logs_
         _lock_

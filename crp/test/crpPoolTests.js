@@ -4,6 +4,16 @@ const ConfigurableRightsPool = artifacts.require('ConfigurableRightsPool');
 const CRPFactory = artifacts.require('CRPFactory');
 const TToken = artifacts.require('TToken');
 const truffleAssert = require('truffle-assertions');
+const Decimal = require('decimal.js');
+const {
+    calcSpotPrice,
+    calcOutGivenIn,
+    calcInGivenOut,
+    calcRelativeDiff,
+} = require('../lib/calc_comparisons');
+
+const verbose = true;//process.env.VERBOSE;
+
 
 /*
 Tests initial CRP Pool set-up including:
@@ -12,9 +22,10 @@ BPool deployment, token binding, balance checks, BPT checks.
 contract('crpPoolTests', async (accounts) => {
     const admin = accounts[0];
     const nonAdmin = accounts[1];
-    const { toWei } = web3.utils;
+    const { toWei, fromWei } = web3.utils;
     const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
     const MAX = web3.utils.toTwosComplement(-1);
+    const errorDelta = 10 ** -8;
     // These are the intial settings for newCrp:
     const swapFee = toWei('0.003');
     const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
@@ -29,9 +40,11 @@ contract('crpPoolTests', async (accounts) => {
     let WETH;
     let DAI;
     let XYZ;
+    let XXX;
     let weth;
     let dai;
     let xyz;
+    let xxx;
 
     before(async () => {
         /*
@@ -46,10 +59,12 @@ contract('crpPoolTests', async (accounts) => {
         xyz = await TToken.new('XYZ', 'XYZ', 18);
         weth = await TToken.new('Wrapped Ether', 'WETH', 18);
         dai = await TToken.new('Dai Stablecoin', 'DAI', 18);
+        xxx = await TToken.new('XXX', 'XXX', 18);
 
         WETH = weth.address;
         DAI = dai.address;
         XYZ = xyz.address;
+        XXX = xxx.address;
 
         // admin balances
         await weth.mint(admin, toWei('100'));
@@ -185,6 +200,25 @@ contract('crpPoolTests', async (accounts) => {
         );
     });
 
+    it('Fails calling any join exit swap before finalizing', async () => {
+        await truffleAssert.reverts(
+            crpPool.joinswapExternAmountIn(WETH, toWei('2.5')),
+            'ERR_SMART_POOL_NOT_FINALIZED',
+        );
+        await truffleAssert.reverts(
+            crpPool.joinswapPoolAmountOut(WETH, toWei('2.5')),
+            'ERR_SMART_POOL_NOT_FINALIZED',
+        );
+        await truffleAssert.reverts(
+            crpPool.exitswapPoolAmountIn(WETH, toWei('2.5')),
+            'ERR_SMART_POOL_NOT_FINALIZED',
+        );
+        await truffleAssert.reverts(
+            crpPool.exitswapExternAmountOut(WETH, toWei('2.5')),
+            'ERR_SMART_POOL_NOT_FINALIZED',
+        );
+    });
+
     it('JoinPool should not revert if smart pool is finalized', async () => {
         await crpPool.finalizeSmartPool();
         await crpPool.joinPool(toWei('1'));
@@ -202,10 +236,65 @@ contract('crpPoolTests', async (accounts) => {
         );
     });
 
-    // !!!!!!! TO ADD?
-    // setController
-    // finalizeSmartPool
-    // createPool ERR_START_BLOCK
-    // updateWeight up and down?
-    // joinPool, exitPool, joins
+    it('Fails calling any swap on unbound token', async () => {
+
+        await truffleAssert.reverts(
+            crpPool.joinswapExternAmountIn(XXX, toWei('2.5')),
+            'ERR_NOT_BOUND',
+        );
+        await truffleAssert.reverts(
+            crpPool.joinswapPoolAmountOut(XXX, toWei('2.5')),
+            'ERR_NOT_BOUND',
+        );
+        await truffleAssert.reverts(
+            crpPool.exitswapPoolAmountIn(XXX, toWei('2.5')),
+            'ERR_NOT_BOUND',
+        );
+        await truffleAssert.reverts(
+            crpPool.exitswapExternAmountOut(XXX, toWei('2.5')),
+            'ERR_NOT_BOUND',
+        );
+    });
+
+    it('tAo = exitswapPoolAmountIn(exitswapExternAmountOut(tAo))', async () => {
+        // From Balancer Core
+        const tAo = '1';
+        const pAi = await crpPool.exitswapExternAmountOut.call(DAI, toWei(tAo));
+        const calculatedtAo = await crpPool.exitswapPoolAmountIn.call(DAI, String(pAi));
+
+        const expected = Decimal(tAo);
+        const actual = fromWei(calculatedtAo);
+        const relDif = calcRelativeDiff(expected, actual);
+
+        if (verbose) {
+            console.log(`pAi: ${pAi})`);
+            console.log('tAo');
+            console.log(`expected: ${expected})`);
+            console.log(`actual  : ${actual})`);
+            console.log(`relDif  : ${relDif})`);
+        }
+
+        assert.isAtMost(relDif.toNumber(), errorDelta);
+    });
+
+    it('pAo = joinswapExternAmountIn(joinswapPoolAmountOut(pAo))', async () => {
+        // From Balancer Core
+        const pAo = 1;
+        const tAi = await crpPool.joinswapPoolAmountOut.call(WETH, toWei(String(pAo)));
+        const calculatedPAo = await crpPool.joinswapExternAmountIn.call(WETH, String(tAi));
+
+        const expected = Decimal(pAo);
+        const actual = fromWei(calculatedPAo);
+        const relDif = calcRelativeDiff(expected, actual);
+
+        if (verbose) {
+            console.log(`tAi: ${tAi})`);
+            console.log('pAo');
+            console.log(`expected: ${expected})`);
+            console.log(`actual  : ${actual})`);
+            console.log(`relDif  : ${relDif})`);
+        }
+
+        assert.isAtMost(relDif.toNumber(), errorDelta);
+    });
 });
