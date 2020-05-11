@@ -135,51 +135,17 @@ contract('configurableAddRemoveTokens', async (accounts) => {
         );
     });
 
-    it('Controller should be able to commitAddToken', async () => {
-        const block = await web3.eth.getBlock('latest');
-        applyAddTokenValidBlock = block.number + addTokenTimeLockInBLocks;
-
-        console.log(`Block commitAddToken for WETH: ${block.number}`);
-        console.log(`applyAddToken valid block: ${applyAddTokenValidBlock}`);
-
-        await crpPool.commitAddToken(WETH, toWei('20'), toWei('1.5'));
-
-        // original is WETH, 40, 1.5 and shouldn't change for commit
-        const bPoolAddr = await crpPool.bPool();
-        const bPool = await BPool.at(bPoolAddr);
-        const bPoolWethBalance = await weth.balanceOf.call(bPoolAddr);
-        const wethWeight = await bPool.getDenormalizedWeight.call(weth.address);
-        const adminWethBalance = await weth.balanceOf.call(admin);
-
-        assert.equal(bPoolWethBalance, toWei('40'));
-        assert.equal(wethWeight, toWei('1.5'));
-        assert.equal(adminWethBalance, toWei('60'));
-    });
-
-    it('Controller should not be able to applyAddToken before addTokenTimeLockInBLocks', async () => {
-        let block = await web3.eth.getBlock('latest');
-
-        assert(block.number < applyAddTokenValidBlock, 'Block Should Be Less Than Valid Block At Start Of Test');
-
-        while (block.number < applyAddTokenValidBlock) {
-            console.log(`applyAddToken valid block: ${applyAddTokenValidBlock}, current block: ${block.number} `);
-
-            await truffleAssert.reverts(
-                crpPool.applyAddToken(),
-                'ERR_TIMELOCK_STILL_COUNTING',
-            );
-            block = await web3.eth.getBlock('latest');
-        }
-
-        // Move blocks on to make valid block
-        let advanceBlocks = 7;
-        while (--advanceBlocks) await time.advanceBlock();
-    });
-
     it('Controller should not be able to applyAddToken for a token that is already bound', async () => {
         truffleAssert.reverts(
-            crpPool.applyAddToken(),
+            crpPool.commitAddToken(WETH, toWei('20'), toWei('1.5')),
             'ERR_IS_BOUND',
+        );
+    });
+
+    it('Controller should not be able to applyAddToken for no commitment', async () => {
+        truffleAssert.reverts(
+            crpPool.applyAddToken(),
+            'ERR_NO_TOKEN_COMMIT',
         );
     });
 
@@ -274,6 +240,13 @@ contract('configurableAddRemoveTokens', async (accounts) => {
         assert.equal(wethWeight, toWei('1.5'));
         assert.equal(daiWeight, toWei('1.5'));
         assert.equal(abcWeight, toWei('1.5'));
+    });
+
+    it('Controller should not be able to applyAddToken after finished', async () => {
+        truffleAssert.reverts(
+            crpPool.applyAddToken(),
+            'ERR_NO_TOKEN_COMMIT',
+        );
     });
 
     it('Controller should not be able to removeToken if token is not bound', async () => {

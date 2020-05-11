@@ -75,10 +75,15 @@ contract ConfigurableRightsPool is PCToken {
     uint private _addTokenTimeLockInBLocks; // Number of blocks that adding a token requires to wait
     bool[4] private _rights; // TODO: consider making all public so we don't need getter functions
 
-    address private _commitNewToken;
-    uint private _commitNewBalance;
-    uint private _commitNewDenormalizedWeight;
-    uint private _commitBlock;
+    struct NewToken {
+        address addr;
+        bool isCommitted;
+        uint commitBlock;
+        uint denorm;
+        uint balance;
+    }
+
+    NewToken private _newToken;
 
     IBFactory public bFactory;
     IBPool public bPool;
@@ -104,6 +109,7 @@ contract ConfigurableRightsPool is PCToken {
         _minimumWeightChangeBlockPeriod = minimumWeightChangeBlockPeriod;
         _addTokenTimeLockInBLocks = addTokenTimeLockInBLocks;
         _rights = rights;
+        _newToken.isCommitted = false;
     }
 
     function getController()
@@ -384,15 +390,16 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
+        require(!bPool.isBound(token), "ERR_IS_BOUND");
         require(denormalizedWeight <= MAX_WEIGHT, "ERR_WEIGHT_ABOVE_MAX");
         require(denormalizedWeight >= MIN_WEIGHT, "ERR_WEIGHT_BELOW_MIN");
-
         require(badd(bPool.getTotalDenormalizedWeight(), denormalizedWeight) <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
 
-        _commitNewToken = token;
-        _commitNewBalance = balance;
-        _commitNewDenormalizedWeight = denormalizedWeight;
-        _commitBlock = block.number;
+        _newToken.addr = token;
+        _newToken.balance = balance;
+        _newToken.denorm = denormalizedWeight;
+        _newToken.commitBlock = block.number;
+        _newToken.isCommitted = true;
     }
 
     function applyAddToken()
@@ -402,25 +409,26 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");
         require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
-        require(bsub(block.number, _commitBlock) >= _addTokenTimeLockInBLocks, "ERR_TIMELOCK_STILL_COUNTING");
+        require(_newToken.isCommitted, "ERR_NO_TOKEN_COMMIT");
+        require(bsub(block.number, _newToken.commitBlock) >= _addTokenTimeLockInBLocks, "ERR_TIMELOCK_STILL_COUNTING");
 
         uint totalSupply = totalSupply();
 
         uint poolShares = bdiv(
                             bmul(
                                 totalSupply,
-                                _commitNewDenormalizedWeight
+                                _newToken.denorm
                                 ),
                             bPool.getTotalDenormalizedWeight()
                             );
 
+        _newToken.isCommitted = false;
         // First gets the tokens from msg.sender to this contract (Pool Controller)
-        bool xfer = IERC20(_commitNewToken).transferFrom(msg.sender, address(this), _commitNewBalance);
+        bool xfer = IERC20(_newToken.addr).transferFrom(msg.sender, address(this), _newToken.balance);
         require(xfer, "ERR_ERC20_FALSE");
         // Now with the tokens this contract can bind them to the pool it controls
-        IERC20(_commitNewToken).approve(address(bPool), uint(-1));   // Approves bPool to pull from this controller
-        bPool.bind(_commitNewToken, _commitNewBalance, _commitNewDenormalizedWeight);
-
+        IERC20(_newToken.addr).approve(address(bPool), uint(-1));   // Approves bPool to pull from this controller
+        bPool.bind(_newToken.addr, _newToken.balance, _newToken.denorm);
         _mintPoolShare(poolShares);
         _pushPoolShare(msg.sender, poolShares);
     }
