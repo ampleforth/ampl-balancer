@@ -91,6 +91,11 @@ contract('configurableSwapFee', async (accounts) => {
         await crpPool.createPool(toWei('100'));
     });
 
+    it('crpPool should have correct rights set', async () => {
+        const currentRights = await crpPool.getCurrentRights();
+        assert.sameMembers(currentRights, [false, false, true, false]);
+    });
+
     it('Non Controller account should not be able to change swapFee', async () => {
         await truffleAssert.reverts(
             crpPool.setSwapFee(toWei('0.001'), { from: accounts[1] }),

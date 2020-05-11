@@ -105,6 +105,11 @@ contract('configurableAddRemoveTokens', async (accounts) => {
         await crpPool.createPool(toWei('100'));
     });
 
+    it('crpPool should have correct rights set', async () => {
+        const currentRights = await crpPool.getCurrentRights();
+        assert.sameMembers(currentRights, [false, false, false, true]);
+    });
+
     it('Controller should not be able to commitAddToken with invalid weight', async () => {
         await truffleAssert.reverts(
             crpPool.commitAddToken(ABC, toWei('10000'), toWei('50.1')),

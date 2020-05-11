@@ -108,9 +108,18 @@ contract ConfigurableRightsPool is PCToken {
 
     function getController()
         external view
+        _viewlock_
         returns (address)
     {
         return _controller;
+    }
+
+    function getCurrentRights()
+        external view
+        _viewlock_
+        returns (bool[4] memory rights)
+    {
+        return _rights;
     }
 
     // TODO: This function can probably be eliminated

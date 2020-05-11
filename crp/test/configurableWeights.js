@@ -128,6 +128,12 @@ contract('configurableWeights', async (accounts) => {
     });
 
     describe('updateWeight', () => {
+
+        it('crpPool should have correct rights set', async () => {
+            const currentRights = await crpPool.getCurrentRights();
+            assert.sameMembers(currentRights, [false, false, true, false]);
+        });
+
         it('Non Controller account should not be able to change weights', async () => {
             await truffleAssert.reverts(
                 crpPool.updateWeight(WETH, toWei('3'), { from: accounts[1] }),

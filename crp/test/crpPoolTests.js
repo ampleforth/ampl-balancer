@@ -64,7 +64,7 @@ contract('crpPoolTests', async (accounts) => {
             swapFee,
             minimumWeightChangeBlockPeriod,
             addTokenTimeLockInBLocks,
-            [false, false, false, true],
+            [true, true, true, true],
             // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );
 
@@ -76,7 +76,7 @@ contract('crpPoolTests', async (accounts) => {
             swapFee,
             minimumWeightChangeBlockPeriod,
             addTokenTimeLockInBLocks,
-            [false, false, false, true],
+            [true, true, true, true],
             // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );
 
@@ -99,6 +99,11 @@ contract('crpPoolTests', async (accounts) => {
         assert.equal(controllerAddr, admin);
     });
 
+    it('crpPool should have all rights set to true', async () => {
+        const currentRights = await crpPool.getCurrentRights();
+        assert.sameMembers(currentRights, [true, true, true, true]);
+    });
+
     it('Admin should have no initial BPT', async () => {
         const adminBPTBalance = await crpPool.balanceOf.call(admin);
         assert.equal(adminBPTBalance, toWei('0'));
@@ -116,6 +121,11 @@ contract('crpPoolTests', async (accounts) => {
         const bPoolAddr = await crpPool.bPool();
         assert.notEqual(bPoolAddr, ZERO_ADDRESS);
         bPool = await BPool.at(bPoolAddr);
+    });
+
+    it('crpPool should have all rights set to true', async () => {
+        const currentRights = await crpPool.getCurrentRights();
+        assert.sameMembers(currentRights, [true, true, true, true]);
     });
 
     it('should not be able to createPool twice', async () => {
