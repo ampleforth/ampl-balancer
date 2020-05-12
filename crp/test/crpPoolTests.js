@@ -216,19 +216,22 @@ contract('crpPoolTests', async (accounts) => {
 
     it('JoinPool should not revert if smart pool is finalized', async () => {
         const bPoolAddr = await crpPool.bPool();
-        let currentPoolBalance = '100';
-        const previousPoolBalance = Decimal(currentPoolBalance);
+        let currentPoolBalance = await crpPool.balanceOf.call(admin);
+        currentPoolBalance = Decimal(fromWei(currentPoolBalance));
+        const previousPoolBalance = currentPoolBalance;
+        let previousbPoolXyzBalance = await xyz.balanceOf.call(bPoolAddr);
+        let previousbPoolWethBalance = await weth.balanceOf.call(bPoolAddr);
+        let previousbPoolDaiBalance = await dai.balanceOf.call(bPoolAddr);
+        previousbPoolXyzBalance = Decimal(fromWei(previousbPoolXyzBalance));
+        previousbPoolWethBalance = Decimal(fromWei(previousbPoolWethBalance));
+        previousbPoolDaiBalance = Decimal(fromWei(previousbPoolDaiBalance));
 
         await crpPool.finalizeSmartPool();
-
-        const previousbPoolXyzBalance = Decimal('80000');
-        const previousbPoolWethBalance = Decimal('40');
-        const previousbPoolDaiBalance = Decimal('10000');
 
         const poolAmountOut = '1';
         await crpPool.joinPool(toWei(poolAmountOut));
 
-        currentPoolBalance = Decimal(currentPoolBalance).add(Decimal(poolAmountOut));
+        currentPoolBalance = currentPoolBalance.add(Decimal(poolAmountOut));
 
         const balance = await crpPool.balanceOf.call(admin);
         const bPoolXYZBalance = await xyz.balanceOf.call(bPoolAddr);
@@ -243,7 +246,7 @@ contract('crpPoolTests', async (accounts) => {
         balanceChange = (Decimal(poolAmountOut).div(previousPoolBalance)).mul(previousbPoolXyzBalance);
         const currentXyzBalance = previousbPoolXyzBalance.add(balanceChange);
 
-        assert.equal(balance, toWei(String(currentPoolBalance)));
+        assert.equal(fromWei(balance), currentPoolBalance);
         assert.equal(bPoolXYZBalance, toWei(String(currentXyzBalance)));
         assert.equal(bPoolWethBalance, toWei(String(currentWethBalance)));
         assert.equal(bPoolDaiBalance, toWei(String(currentDaiBalance)));
@@ -320,22 +323,23 @@ contract('crpPoolTests', async (accounts) => {
 
     it('should exitpool', async () => {
         const bPoolAddr = await crpPool.bPool();
-        let currentPoolBalance = '101';
         const poolAmountIn = '99';
-        const previousPoolBalance = Decimal(currentPoolBalance);
 
+        let currentPoolBalance = await crpPool.balanceOf.call(admin);
         let previousbPoolXyzBalance = await xyz.balanceOf.call(bPoolAddr);
         let previousbPoolWethBalance = await weth.balanceOf.call(bPoolAddr);
         let previousbPoolDaiBalance = await dai.balanceOf.call(bPoolAddr);
+        currentPoolBalance = Decimal(fromWei(currentPoolBalance));
         previousbPoolXyzBalance = Decimal(fromWei(previousbPoolXyzBalance));
         previousbPoolWethBalance = Decimal(fromWei(previousbPoolWethBalance));
         previousbPoolDaiBalance = Decimal(fromWei(previousbPoolDaiBalance));
+        const previousPoolBalance = Decimal(currentPoolBalance);
 
         await crpPool.exitPool(toWei(poolAmountIn));
 
-        currentPoolBalance = Decimal(currentPoolBalance).sub(Decimal(poolAmountIn));
+        currentPoolBalance = currentPoolBalance.sub(Decimal(poolAmountIn));
 
-        const balance = await crpPool.balanceOf.call(admin);
+        const poolBalance = await crpPool.balanceOf.call(admin);
         const bPoolXYZBalance = await xyz.balanceOf.call(bPoolAddr);
         const bPoolWethBalance = await weth.balanceOf.call(bPoolAddr);
         const bPoolDaiBalance = await dai.balanceOf.call(bPoolAddr);
@@ -354,7 +358,7 @@ contract('crpPoolTests', async (accounts) => {
         assert.isAtMost(relDif.toNumber(), errorDelta);
         relDif = calcRelativeDiff(currentWethBalance, fromWei(bPoolWethBalance));
         assert.isAtMost(relDif.toNumber(), errorDelta);
-        assert.equal(balance, toWei('2'));
+        assert.equal(fromWei(poolBalance), currentPoolBalance);
     });
 
     describe('PCToken interactions', () => {
