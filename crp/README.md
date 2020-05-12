@@ -64,6 +64,9 @@ Balancer Smart Pool token. ERC20 with some extra math functions.
 
 Interface for [Balancer Factory](https://github.com/balancer-labs/balancer-core/blob/master/contracts/BFactory.sol).
 
+## TO NOTE
+
+Can not 100% exit using Pool Tokens (rebind will revert). Possible to do using unbind with special permissions but trade off is potential loss of security.
 
 ## Getting Started - Local Testing
 

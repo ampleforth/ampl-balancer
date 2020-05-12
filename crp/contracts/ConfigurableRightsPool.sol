@@ -241,10 +241,11 @@ contract ConfigurableRightsPool is PCToken {
         uint totalSupply = totalSupply();
         uint totalWeight = bPool.getTotalDenormalizedWeight();
 
-        require(badd(totalWeight, bsub(newWeight,currentWeight)) <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
+        if(newWeight < currentWeight){ // This means the controller will withdraw tokens to keep price. This means they need to redeem PCTokens
+            require(badd(totalWeight, bsub(currentWeight, newWeight)) <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
 
-        if(newWeight<currentWeight){ // This means the controller will withdraw tokens to keep price. This means they need to redeem PCTokens
             deltaWeight = bsub(currentWeight, newWeight);
+
             poolShares = bmul(
                             totalSupply,
                             bdiv(
@@ -273,6 +274,8 @@ contract ConfigurableRightsPool is PCToken {
             _burnPoolShare(poolShares);
         }
         else{ // This means the controller will deposit tokens to keep the price. This means they will be minted and given PCTokens
+            require(badd(totalWeight, bsub(newWeight, currentWeight)) <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
+
             deltaWeight = bsub(newWeight, currentWeight);
             poolShares = bmul(
                             totalSupply,

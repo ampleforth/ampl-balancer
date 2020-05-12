@@ -5,15 +5,9 @@ const CRPFactory = artifacts.require('CRPFactory');
 const TToken = artifacts.require('TToken');
 const truffleAssert = require('truffle-assertions');
 const Decimal = require('decimal.js');
-const {
-    calcSpotPrice,
-    calcOutGivenIn,
-    calcInGivenOut,
-    calcRelativeDiff,
-} = require('../lib/calc_comparisons');
+const { calcRelativeDiff } = require('../lib/calc_comparisons');
 
-const verbose = true;//process.env.VERBOSE;
-
+const verbose = process.env.VERBOSE;
 
 /*
 Tests initial CRP Pool set-up including:
@@ -21,7 +15,8 @@ BPool deployment, token binding, balance checks, BPT checks.
 */
 contract('crpPoolTests', async (accounts) => {
     const admin = accounts[0];
-    const nonAdmin = accounts[1];
+    const user1 = accounts[1];
+    const user2 = accounts[2];
     const { toWei, fromWei } = web3.utils;
     const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
     const MAX = web3.utils.toTwosComplement(-1);
@@ -220,24 +215,48 @@ contract('crpPoolTests', async (accounts) => {
     });
 
     it('JoinPool should not revert if smart pool is finalized', async () => {
+        const bPoolAddr = await crpPool.bPool();
+        let currentPoolBalance = '100';
+        const previousPoolBalance = Decimal(currentPoolBalance);
+
         await crpPool.finalizeSmartPool();
-        await crpPool.joinPool(toWei('1'));
+
+        const previousbPoolXyzBalance = Decimal('80000');
+        const previousbPoolWethBalance = Decimal('40');
+        const previousbPoolDaiBalance = Decimal('10000');
+
+        const poolAmountOut = '1';
+        await crpPool.joinPool(toWei(poolAmountOut));
+
+        currentPoolBalance = Decimal(currentPoolBalance).add(Decimal(poolAmountOut));
 
         const balance = await crpPool.balanceOf.call(admin);
+        const bPoolXYZBalance = await xyz.balanceOf.call(bPoolAddr);
+        const bPoolWethBalance = await weth.balanceOf.call(bPoolAddr);
+        const bPoolDaiBalance = await dai.balanceOf.call(bPoolAddr);
 
-        assert.equal(balance, toWei('101'));
-        // !!!!!!! Confirm account balances for tokens is correct
+        // Balances of all tokens increase proportionally to the pool balance
+        let balanceChange = (Decimal(poolAmountOut).div(previousPoolBalance)).mul(previousbPoolWethBalance);
+        const currentWethBalance = previousbPoolWethBalance.add(balanceChange);
+        balanceChange = (Decimal(poolAmountOut).div(previousPoolBalance)).mul(previousbPoolDaiBalance);
+        const currentDaiBalance = previousbPoolDaiBalance.add(balanceChange);
+        balanceChange = (Decimal(poolAmountOut).div(previousPoolBalance)).mul(previousbPoolXyzBalance);
+        const currentXyzBalance = previousbPoolXyzBalance.add(balanceChange);
+
+        assert.equal(balance, toWei(String(currentPoolBalance)));
+        assert.equal(bPoolXYZBalance, toWei(String(currentXyzBalance)));
+        assert.equal(bPoolWethBalance, toWei(String(currentWethBalance)));
+        assert.equal(bPoolDaiBalance, toWei(String(currentDaiBalance)));
     });
 
     it('JoinPool should revert if user does not have allowance to join pool', async () => {
         await truffleAssert.reverts(
-            crpPool.joinPool(toWei('1'), { from: nonAdmin }),
+            crpPool.joinPool(toWei('1'), { from: user1 }),
             'ERR_BTOKEN_BAD_CALLER',
         );
     });
 
     it('Fails calling any swap on unbound token', async () => {
-
         await truffleAssert.reverts(
             crpPool.joinswapExternAmountIn(XXX, toWei('2.5')),
             'ERR_NOT_BOUND',
@@ -296,5 +315,88 @@ contract('crpPoolTests', async (accounts) => {
         }
 
         assert.isAtMost(relDif.toNumber(), errorDelta);
+    });
+
+
+    it('should exitpool', async () => {
+        const bPoolAddr = await crpPool.bPool();
+        let currentPoolBalance = '101';
+        const poolAmountIn = '99';
+        const previousPoolBalance = Decimal(currentPoolBalance);
+
+        let previousbPoolXyzBalance = await xyz.balanceOf.call(bPoolAddr);
+        let previousbPoolWethBalance = await weth.balanceOf.call(bPoolAddr);
+        let previousbPoolDaiBalance = await dai.balanceOf.call(bPoolAddr);
+        previousbPoolXyzBalance = Decimal(fromWei(previousbPoolXyzBalance));
+        previousbPoolWethBalance = Decimal(fromWei(previousbPoolWethBalance));
+        previousbPoolDaiBalance = Decimal(fromWei(previousbPoolDaiBalance));
+
+        await crpPool.exitPool(toWei(poolAmountIn));
+
+        currentPoolBalance = Decimal(currentPoolBalance).sub(Decimal(poolAmountIn));
+
+        const balance = await crpPool.balanceOf.call(admin);
+        const bPoolXYZBalance = await xyz.balanceOf.call(bPoolAddr);
+        const bPoolWethBalance = await weth.balanceOf.call(bPoolAddr);
+        const bPoolDaiBalance = await dai.balanceOf.call(bPoolAddr);
+
+        // Balances of all tokens increase proportionally to the pool balance
+        let balanceChange = (Decimal(poolAmountIn).div(previousPoolBalance)).mul(previousbPoolWethBalance);
+        const currentWethBalance = previousbPoolWethBalance.sub(balanceChange);
+        balanceChange = (Decimal(poolAmountIn).div(previousPoolBalance)).mul(previousbPoolDaiBalance);
+        const currentDaiBalance = previousbPoolDaiBalance.sub(balanceChange);
+        balanceChange = (Decimal(poolAmountIn).div(previousPoolBalance)).mul(previousbPoolXyzBalance);
+        const currentXyzBalance = previousbPoolXyzBalance.sub(balanceChange);
+
+        let relDif = calcRelativeDiff(currentXyzBalance, fromWei(bPoolXYZBalance));
+        assert.isAtMost(relDif.toNumber(), errorDelta);
+        relDif = calcRelativeDiff(currentDaiBalance, fromWei(bPoolDaiBalance));
+        assert.isAtMost(relDif.toNumber(), errorDelta);
+        relDif = calcRelativeDiff(currentWethBalance, fromWei(bPoolWethBalance));
+        assert.isAtMost(relDif.toNumber(), errorDelta);
+        assert.equal(balance, toWei('2'));
+    });
+
+    describe('PCToken interactions', () => {
+        it('Token descriptors', async () => {
+            const name = await crpPool.NAME();
+            assert.equal(name, 'Balancer Smart Pool');
+
+            const symbol = await crpPool.SYMBOL();
+            assert.equal(symbol, 'BSP');
+
+            const decimals = await crpPool.DECIMALS();
+            assert.equal(decimals, 18);
+        });
+
+        it('Token allowances', async () => {
+            await crpPool.approve(user1, toWei('50'));
+            let allowance = await crpPool.allowance(admin, user1);
+            assert.equal(fromWei(allowance), 50);
+
+            await crpPool.increaseApproval(user1, toWei('50'));
+            allowance = await crpPool.allowance(admin, user1);
+            assert.equal(fromWei(allowance), 100);
+
+            await crpPool.decreaseApproval(user1, toWei('50'));
+            allowance = await crpPool.allowance(admin, user1);
+            assert.equal(fromWei(allowance), 50);
+
+            await crpPool.decreaseApproval(user1, toWei('100'));
+            allowance = await crpPool.allowance(admin, user1);
+            assert.equal(fromWei(allowance), 0);
+        });
+
+        it('Token transfers', async () => {
+            await truffleAssert.reverts(
+                crpPool.transferFrom(user2, admin, toWei('10')),
+                'ERR_PCTOKEN_BAD_CALLER',
+            );
+
+            await crpPool.transferFrom(admin, user2, toWei('1'));
+            await crpPool.approve(user2, toWei('10'));
+            await crpPool.transferFrom(admin, user2, toWei('1'), { from: user2 });
+            await crpPool.transfer(admin, toWei('0.5'), { from: user2 });
+        });
     });
 });

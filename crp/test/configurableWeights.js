@@ -4,12 +4,8 @@ const ConfigurableRightsPool = artifacts.require('ConfigurableRightsPool');
 const CRPFactory = artifacts.require('CRPFactory');
 const TToken = artifacts.require('TToken');
 const truffleAssert = require('truffle-assertions');
-const Decimal = require('decimal.js');
 const { time } = require('@openzeppelin/test-helpers');
-
-function calcRelativeDiff(expected, actual) {
-    return ((Decimal(expected).minus(Decimal(actual))).div(expected)).abs();
-}
+const { calcRelativeDiff } = require('../lib/calc_comparisons');
 
 // Helper function to calculate new weights.
 function newWeight(block, startBlock, endBlock, startWeight, endWeight) {
@@ -65,69 +61,68 @@ contract('configurableWeights', async (accounts) => {
     let endWethWeight = '6';
     let endDaiWeight = '6';
 
-    before(async () => {
-        /*
-        Uses deployed BFactory & CRPFactory.
-        Deploys new test tokens - XYZ, WETH, DAI, ABC, ASD
-        Mints test tokens for Admin user (account[0])
-        CRPFactory creates new CRP.
-        Admin approves CRP for MAX
-        newCrp call with configurableWeights set to true
-        */
-        bFactory = await BFactory.deployed();
-        crpFactory = await CRPFactory.deployed();
-        xyz = await TToken.new('XYZ', 'XYZ', 18);
-        weth = await TToken.new('Wrapped Ether', 'WETH', 18);
-        dai = await TToken.new('Dai Stablecoin', 'DAI', 18);
-        abc = await TToken.new('ABC', 'ABC', 18);
+    describe('Weights permissions, etc', () => {
+        before(async () => {
+            /*
+            Uses deployed BFactory & CRPFactory.
+            Deploys new test tokens - XYZ, WETH, DAI, ABC, ASD
+            Mints test tokens for Admin user (account[0])
+            CRPFactory creates new CRP.
+            Admin approves CRP for MAX
+            newCrp call with configurableWeights set to true
+            */
+            bFactory = await BFactory.deployed();
+            crpFactory = await CRPFactory.deployed();
+            xyz = await TToken.new('XYZ', 'XYZ', 18);
+            weth = await TToken.new('Wrapped Ether', 'WETH', 18);
+            dai = await TToken.new('Dai Stablecoin', 'DAI', 18);
+            abc = await TToken.new('ABC', 'ABC', 18);
 
-        WETH = weth.address;
-        DAI = dai.address;
-        XYZ = xyz.address;
-        ABC = abc.address;
+            WETH = weth.address;
+            DAI = dai.address;
+            XYZ = xyz.address;
+            ABC = abc.address;
 
-        // admin balances
-        await weth.mint(admin, toWei('100'));
-        await dai.mint(admin, toWei('15000'));
-        await xyz.mint(admin, toWei('100000'));
-        await abc.mint(admin, toWei('100000'));
+            // admin balances
+            await weth.mint(admin, toWei('100'));
+            await dai.mint(admin, toWei('15000'));
+            await xyz.mint(admin, toWei('100000'));
+            await abc.mint(admin, toWei('100000'));
 
-        const tokenAddresses = [XYZ, WETH, DAI];
+            const tokenAddresses = [XYZ, WETH, DAI];
 
-        CRPPOOL = await crpFactory.newCrp.call(
-            bFactory.address,
-            tokenAddresses,
-            startBalances,
-            startWeights,
-            swapFee,
-            minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBLocks,
-            permissions,
-        );
+            CRPPOOL = await crpFactory.newCrp.call(
+                bFactory.address,
+                tokenAddresses,
+                startBalances,
+                startWeights,
+                swapFee,
+                minimumWeightChangeBlockPeriod,
+                addTokenTimeLockInBLocks,
+                permissions,
+            );
 
-        await crpFactory.newCrp(
-            bFactory.address,
-            tokenAddresses,
-            startBalances,
-            startWeights,
-            swapFee,
-            minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBLocks,
-            permissions,
-        );
+            await crpFactory.newCrp(
+                bFactory.address,
+                tokenAddresses,
+                startBalances,
+                startWeights,
+                swapFee,
+                minimumWeightChangeBlockPeriod,
+                addTokenTimeLockInBLocks,
+                permissions,
+            );
 
-        crpPool = await ConfigurableRightsPool.at(CRPPOOL);
+            crpPool = await ConfigurableRightsPool.at(CRPPOOL);
 
-        const CRPPOOL_ADDRESS = crpPool.address;
+            const CRPPOOL_ADDRESS = crpPool.address;
 
-        await weth.approve(CRPPOOL_ADDRESS, MAX);
-        await dai.approve(CRPPOOL_ADDRESS, MAX);
-        await xyz.approve(CRPPOOL_ADDRESS, MAX);
+            await weth.approve(CRPPOOL_ADDRESS, MAX);
+            await dai.approve(CRPPOOL_ADDRESS, MAX);
+            await xyz.approve(CRPPOOL_ADDRESS, MAX);
 
-        await crpPool.createPool(toWei('100'));
-    });
-
-    describe('updateWeight', () => {
+            await crpPool.createPool(toWei('100'));
+        });
 
         it('crpPool should have correct rights set', async () => {
             const currentRights = await crpPool.getCurrentRights();
@@ -238,6 +233,195 @@ contract('configurableWeights', async (accounts) => {
                 crpPool.updateWeight(ABC, toWei('4.5')),
                 'ERR_NOT_BOUND',
             );
+        });
+    });
+
+    describe('updateWeight', () => {
+        beforeEach(async () => {
+            /*
+            Uses deployed BFactory & CRPFactory.
+            Deploys new test tokens - XYZ, WETH, DAI, ABC, ASD
+            Mints test tokens for Admin user (account[0])
+            CRPFactory creates new CRP.
+            Admin approves CRP for MAX
+            newCrp call with configurableWeights set to true
+            */
+            bFactory = await BFactory.deployed();
+            crpFactory = await CRPFactory.deployed();
+            xyz = await TToken.new('XYZ', 'XYZ', 18);
+            weth = await TToken.new('Wrapped Ether', 'WETH', 18);
+            dai = await TToken.new('Dai Stablecoin', 'DAI', 18);
+            abc = await TToken.new('ABC', 'ABC', 18);
+
+            WETH = weth.address;
+            DAI = dai.address;
+            XYZ = xyz.address;
+            ABC = abc.address;
+
+            // admin balances
+            await weth.mint(admin, toWei('100'));
+            await dai.mint(admin, toWei('15000'));
+            await xyz.mint(admin, toWei('100000'));
+            await abc.mint(admin, toWei('100000'));
+
+            const tokenAddresses = [XYZ, WETH, DAI];
+
+            CRPPOOL = await crpFactory.newCrp.call(
+                bFactory.address,
+                tokenAddresses,
+                startBalances,
+                startWeights,
+                swapFee,
+                minimumWeightChangeBlockPeriod,
+                addTokenTimeLockInBLocks,
+                permissions,
+            );
+
+            await crpFactory.newCrp(
+                bFactory.address,
+                tokenAddresses,
+                startBalances,
+                startWeights,
+                swapFee,
+                minimumWeightChangeBlockPeriod,
+                addTokenTimeLockInBLocks,
+                permissions,
+            );
+
+            crpPool = await ConfigurableRightsPool.at(CRPPOOL);
+
+            const CRPPOOL_ADDRESS = crpPool.address;
+
+            await weth.approve(CRPPOOL_ADDRESS, MAX);
+            await dai.approve(CRPPOOL_ADDRESS, MAX);
+            await xyz.approve(CRPPOOL_ADDRESS, MAX);
+
+            await crpPool.createPool(toWei('100'));
+        });
+
+        it('Controller should be able to change weights (down) with updateWeight()', async () => {
+            const bPoolAddr = await crpPool.bPool();
+            const bPool = await BPool.at(bPoolAddr);
+
+            let adminBPTBalance = await crpPool.balanceOf.call(admin);
+            let adminXyzBalance = await xyz.balanceOf.call(admin);
+            let bPoolXYZBalance = await xyz.balanceOf.call(bPoolAddr);
+            let bPoolWethBalance = await weth.balanceOf.call(bPoolAddr);
+            let bPoolDaiBalance = await dai.balanceOf.call(bPoolAddr);
+
+            assert.equal(adminBPTBalance, toWei('100'));
+            assert.equal(adminXyzBalance, toWei('20000'));
+            assert.equal(bPoolXYZBalance, toWei('80000'));
+            assert.equal(bPoolWethBalance, toWei('40'));
+            assert.equal(bPoolDaiBalance, toWei('10000'));
+
+            let xyzWeight = await bPool.getDenormalizedWeight.call(xyz.address);
+            let wethWeight = await bPool.getDenormalizedWeight.call(weth.address);
+            let daiWeight = await bPool.getDenormalizedWeight.call(dai.address);
+
+            const xyzStartSpotPrice = await bPool.getSpotPrice.call(weth.address, xyz.address);
+            const daiStartSpotPrice = await bPool.getSpotPrice.call(weth.address, dai.address);
+            const xdStartSpotPrice = await bPool.getSpotPrice.call(xyz.address, dai.address);
+
+            assert.equal(xyzWeight, toWei(startingXyzWeight));
+            assert.equal(wethWeight, toWei(startingWethWeight));
+            assert.equal(daiWeight, toWei(startingDaiWeight));
+
+            const updatedXyzWeight = '6';
+
+            // This should double XYZ weight from 12 to 6.
+            await crpPool.updateWeight(XYZ, toWei(updatedXyzWeight));
+
+            adminBPTBalance = await crpPool.balanceOf.call(admin);
+            adminXyzBalance = await xyz.balanceOf.call(admin);
+            bPoolXYZBalance = await xyz.balanceOf.call(bPoolAddr);
+            bPoolWethBalance = await weth.balanceOf.call(bPoolAddr);
+            bPoolDaiBalance = await dai.balanceOf.call(bPoolAddr);
+
+            // BPT Balance should go from 100 to 60 since total weight went from 15 to 9
+            // XYZ Balance should go from 20000 to 60000 (40000 (half of original balance) returned from pool)
+            assert.equal(adminBPTBalance, toWei('60'));
+            assert.equal(adminXyzBalance, toWei('60000'));
+            assert.equal(bPoolXYZBalance, toWei('40000'));
+            assert.equal(bPoolWethBalance, toWei('40'));
+            assert.equal(bPoolDaiBalance, toWei('10000'));
+
+            xyzWeight = await bPool.getDenormalizedWeight.call(xyz.address);
+            wethWeight = await bPool.getDenormalizedWeight.call(weth.address);
+            daiWeight = await bPool.getDenormalizedWeight.call(dai.address);
+
+            assert.equal(xyzWeight, toWei(updatedXyzWeight));
+            assert.equal(wethWeight, toWei(startingWethWeight));
+            assert.equal(daiWeight, toWei(startingDaiWeight));
+
+            const xyzUpdatedSpotPrice = await bPool.getSpotPrice.call(weth.address, xyz.address);
+            const daiUpdatedSpotPrice = await bPool.getSpotPrice.call(weth.address, dai.address);
+            const xdUpdatedSpotPrice = await bPool.getSpotPrice.call(xyz.address, dai.address);
+
+            assert.equal(fromWei(xyzStartSpotPrice), fromWei(xyzUpdatedSpotPrice));
+            assert.equal(fromWei(daiStartSpotPrice), fromWei(daiUpdatedSpotPrice));
+            assert.equal(fromWei(xdStartSpotPrice), fromWei(xdUpdatedSpotPrice));
+        });
+
+        it('Controller should be able to change weights with updateWeight()', async () => {
+            const bPoolAddr = await crpPool.bPool();
+            const bPool = await BPool.at(bPoolAddr);
+
+            let adminBPTBalance = await crpPool.balanceOf.call(admin);
+            let adminWethBalance = await weth.balanceOf.call(admin);
+            let bPoolXYZBalance = await xyz.balanceOf.call(bPoolAddr);
+            let bPoolWethBalance = await weth.balanceOf.call(bPoolAddr);
+            let bPoolDaiBalance = await dai.balanceOf.call(bPoolAddr);
+
+            assert.equal(adminBPTBalance, toWei('100'));
+            assert.equal(adminWethBalance, toWei('60'));
+            assert.equal(bPoolXYZBalance, toWei('80000'));
+            assert.equal(bPoolWethBalance, toWei('40'));
+            assert.equal(bPoolDaiBalance, toWei('10000'));
+
+            let xyzWeight = await bPool.getDenormalizedWeight.call(xyz.address);
+            let wethWeight = await bPool.getDenormalizedWeight.call(weth.address);
+            let daiWeight = await bPool.getDenormalizedWeight.call(dai.address);
+
+            const xyzStartSpotPrice = await bPool.getSpotPrice.call(weth.address, xyz.address);
+            const daiStartSpotPrice = await bPool.getSpotPrice.call(weth.address, dai.address);
+            const xdStartSpotPrice = await bPool.getSpotPrice.call(xyz.address, dai.address);
+
+            assert.equal(xyzWeight, toWei(startingXyzWeight));
+            assert.equal(wethWeight, toWei(startingWethWeight));
+            assert.equal(daiWeight, toWei(startingDaiWeight));
+
+            await crpPool.updateWeight(WETH, toWei(updatedWethWeight)); // This should double WETH weight from 1.5 to 3.
+
+            adminBPTBalance = await crpPool.balanceOf.call(admin);
+            adminWethBalance = await weth.balanceOf.call(admin);
+            bPoolXYZBalance = await xyz.balanceOf.call(bPoolAddr);
+            bPoolWethBalance = await weth.balanceOf.call(bPoolAddr);
+            bPoolDaiBalance = await dai.balanceOf.call(bPoolAddr);
+
+            // BPT Balance should go from 100 to 110 since total weight went from 15 to 16.5
+            // WETH Balance should go from 60 to 20 (since 40 WETH are deposited to pool to get if from 40 to 80 WETH)
+            assert.equal(adminBPTBalance, toWei('110'));
+            assert.equal(adminWethBalance, toWei('20'));
+            assert.equal(bPoolXYZBalance, toWei('80000'));
+            assert.equal(bPoolWethBalance, toWei('80'));
+            assert.equal(bPoolDaiBalance, toWei('10000'));
+
+            xyzWeight = await bPool.getDenormalizedWeight.call(xyz.address);
+            wethWeight = await bPool.getDenormalizedWeight.call(weth.address);
+            daiWeight = await bPool.getDenormalizedWeight.call(dai.address);
+
+            assert.equal(xyzWeight, toWei(startingXyzWeight));
+            assert.equal(wethWeight, toWei(updatedWethWeight));
+            assert.equal(daiWeight, toWei(startingDaiWeight));
+
+            const xyzUpdatedSpotPrice = await bPool.getSpotPrice.call(weth.address, xyz.address);
+            const daiUpdatedSpotPrice = await bPool.getSpotPrice.call(weth.address, dai.address);
+            const xdUpdatedSpotPrice = await bPool.getSpotPrice.call(xyz.address, dai.address);
+
+            assert.equal(fromWei(xyzStartSpotPrice), fromWei(xyzUpdatedSpotPrice));
+            assert.equal(fromWei(daiStartSpotPrice), fromWei(daiUpdatedSpotPrice));
+            assert.equal(fromWei(xdStartSpotPrice), fromWei(xdUpdatedSpotPrice));
         });
     });
 

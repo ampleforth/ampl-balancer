@@ -96,8 +96,10 @@ contract('pausableSwap', async (accounts) => {
     it('ConfigurableRightsPool isPublicSwap should be true after creation', async () => {
         const bPoolAddr = await crpPool.bPool();
         const bPool = await BPool.at(bPoolAddr);
-        const isPublicSwap = await bPool.isPublicSwap.call();
+        const isPublicSwap = await crpPool.isPublicSwap.call();
         assert.equal(isPublicSwap, true);
+        const isPublicSwapCheck = await bPool.isPublicSwap.call();
+        assert.equal(isPublicSwapCheck, true);
     });
 
     it('Set public swap should revert for non-controller', async () => {
@@ -113,8 +115,10 @@ contract('pausableSwap', async (accounts) => {
 
         await crpPool.setPublicSwap(false);
 
-        const isPublicSwap = await bPool.isPublicSwap.call();
+        const isPublicSwap = await crpPool.isPublicSwap.call();
         assert.equal(isPublicSwap, false);
+        const isPublicSwapCheck = await bPool.isPublicSwap.call();
+        assert.equal(isPublicSwapCheck, false);
     });
 
     it('Non-controller should not be able to restart trades', async () => {
@@ -130,8 +134,10 @@ contract('pausableSwap', async (accounts) => {
 
         await crpPool.setPublicSwap(true);
 
-        const isPublicSwap = await bPool.isPublicSwap.call();
+        const isPublicSwap = await crpPool.isPublicSwap.call();
         assert.equal(isPublicSwap, true);
+        const isPublicSwapCheck = await bPool.isPublicSwap.call();
+        assert.equal(isPublicSwapCheck, true);
     });
 
     it('Controller should not be able to change swapFee', async () => {
