@@ -102,7 +102,7 @@ contract LiquidityBootstrappingPool is PCToken {
         _controller = manager;
     }
 
-    function createPool(toWei('100'))
+    function createPool(uint256 initialSupply)
         external
         _logs_
         _lock_
@@ -110,6 +110,7 @@ contract LiquidityBootstrappingPool is PCToken {
     {
         require(block.number >= _startBlock, "ERR_START_BLOCK");
         require(!_created, "ERR_IS_CREATED");
+        require(initialSupply > 0, "ERR_INIT_SUPPLY");
 
         // Deploy new BPool
         _bPool = _bFactory.newBPool();
@@ -130,8 +131,8 @@ contract LiquidityBootstrappingPool is PCToken {
 
         _created = true;
 
-        _mintPoolShare(INIT_POOL_SUPPLY);
-        _pushPoolShare(msg.sender, INIT_POOL_SUPPLY);
+        _mintPoolShare(initialSupply);
+        _pushPoolShare(msg.sender, initialSupply);
     }
 
     function pokeWeights()
