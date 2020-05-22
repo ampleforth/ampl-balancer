@@ -30,7 +30,7 @@ contract('CRPFactory', async (accounts) => {
         let asd;
         let startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
         let startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
-        let addTokenTimeLockInBLocks = 10;
+        let addTokenTimeLockInBlocks = 10;
         let applyAddTokenValidBlock;
 
         before(async () => {
@@ -63,7 +63,7 @@ contract('CRPFactory', async (accounts) => {
                 startWeights,
                 10**15, //swapFee
                 10, //minimumWeightChangeBlockPeriod
-                addTokenTimeLockInBLocks, //addTokenTimeLockInBLocks
+                addTokenTimeLockInBlocks, //addTokenTimeLockInBlocks
                 [false, false, false, true] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
             );  
 
@@ -74,7 +74,7 @@ contract('CRPFactory', async (accounts) => {
                 startWeights,
                 10**15, //swapFee
                 10, //minimumWeightChangeBlockPeriod
-                addTokenTimeLockInBLocks, //addTokenTimeLockInBLocks
+                addTokenTimeLockInBlocks, //addTokenTimeLockInBlocks
                 [false, false, false, true] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
             );  
 
@@ -115,7 +115,7 @@ contract('CRPFactory', async (accounts) => {
 
             it('Controller should be able to commitAddToken', async () => {
                 block = await web3.eth.getBlock("latest");
-                applyAddTokenValidBlock = block.number+addTokenTimeLockInBLocks
+                applyAddTokenValidBlock = block.number+addTokenTimeLockInBlocks
                 console.log("Block commitAddToken: "+block.number); 
                 console.log("Block valid applyAddToken : "+applyAddTokenValidBlock);  
                 await controller.commitAddToken(WETH, toWei('20'), toWei('1.5'));
@@ -123,7 +123,7 @@ contract('CRPFactory', async (accounts) => {
 
 
 
-            it('Controller should not be able to applyAddToken before addTokenTimeLockInBLocks', async () => {
+            it('Controller should not be able to applyAddToken before addTokenTimeLockInBlocks', async () => {
                 for (var i = 0; block.number < applyAddTokenValidBlock-1; i++) {
                     truffleAssert.reverts(
                       controller.applyAddToken(), 
@@ -149,14 +149,14 @@ contract('CRPFactory', async (accounts) => {
 
             it('Controller should be able to commitAddToken again', async () => {
                 block = await web3.eth.getBlock("latest");
-                applyAddTokenValidBlock = block.number+addTokenTimeLockInBLocks
+                applyAddTokenValidBlock = block.number+addTokenTimeLockInBlocks
                 console.log("Block commitAddToken: "+block.number); 
                 console.log("Block valid applyAddToken : "+applyAddTokenValidBlock);  
                 await controller.commitAddToken(ABC, toWei('10000'), toWei('1.5'));
             });
 
 
-            it('Controller should not be able to applyAddToken before addTokenTimeLockInBLocks', async () => {
+            it('Controller should not be able to applyAddToken before addTokenTimeLockInBlocks', async () => {
                 for (var i = 0; block.number < applyAddTokenValidBlock-1; i++) { // -1 seems necessary here. TODO: Investigate block numbers
                     truffleAssert.reverts(
                       controller.applyAddToken(), 

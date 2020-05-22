@@ -52,7 +52,7 @@ contract('CRPFactory', async (accounts) => {
                 startWeights,
                 10**15, //swapFee
                 10, //minimumWeightChangeBlockPeriod
-                10, //addTokenTimeLockInBLocks
+                10, //addTokenTimeLockInBlocks
                 [false, false, true, false] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
             );  
 
@@ -63,7 +63,7 @@ contract('CRPFactory', async (accounts) => {
                 startWeights,
                 10**15, //swapFee
                 10, //minimumWeightChangeBlockPeriod
-                10, //addTokenTimeLockInBLocks
+                10, //addTokenTimeLockInBlocks
                 [false, false, true, false] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
             );  
 

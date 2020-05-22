@@ -73,7 +73,7 @@ contract ConfigurableRightsPool is PCToken {
     uint256 private _startBlock;
     uint256 private _endBlock;
     uint private _minimumWeightChangeBlockPeriod;
-    uint private _addTokenTimeLockInBLocks; // Number of blocks that adding a token requires to wait 
+    uint private _addTokenTimeLockInBlocks; // Number of blocks that adding a token requires to wait 
     bool[4] private _rights; // TODO: consider making all public so we don't need getter functions
 
     address private _commitNewToken;
@@ -92,7 +92,7 @@ contract ConfigurableRightsPool is PCToken {
         uint256[] memory startWeights,
         uint swapFee,
         uint minimumWeightChangeBlockPeriod,
-        uint addTokenTimeLockInBLocks,
+        uint addTokenTimeLockInBlocks,
         bool[4] memory rights // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
     )
         public
@@ -104,7 +104,7 @@ contract ConfigurableRightsPool is PCToken {
         _startWeights = startWeights;
         _swapFee = swapFee;
         _minimumWeightChangeBlockPeriod = minimumWeightChangeBlockPeriod;
-        _addTokenTimeLockInBLocks = addTokenTimeLockInBLocks;
+        _addTokenTimeLockInBlocks = addTokenTimeLockInBlocks;
         _rights = rights;
     } 
 
@@ -390,7 +390,7 @@ contract ConfigurableRightsPool is PCToken {
     {
         require(msg.sender == _controller, "ERR_NOT_CONTROLLER");        
         require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
-        require(bsub(block.number,_commitBlock)>=_addTokenTimeLockInBLocks ,"ERR_TIMELOCK_STILL_COUNTING");
+        require(bsub(block.number,_commitBlock)>=_addTokenTimeLockInBlocks ,"ERR_TIMELOCK_STILL_COUNTING");
 
         uint totalSupply = totalSupply();
 

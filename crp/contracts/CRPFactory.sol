@@ -38,7 +38,7 @@ contract CRPFactory {
         uint256[] calldata startWeights,
         uint swapFee,
         uint minimumWeightChangeBlockPeriod,
-        uint addTokenTimeLockInBLocks,
+        uint addTokenTimeLockInBlocks,
         bool[4] calldata rights
     )
         external
@@ -51,7 +51,7 @@ contract CRPFactory {
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBLocks,
+            addTokenTimeLockInBlocks,
             rights  
         );
         _isCrp[address(crp)] = true;
