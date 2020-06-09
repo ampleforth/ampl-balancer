@@ -149,9 +149,9 @@ contract('LBPFactory', async (accounts) => {
         assert.equal(swapFee, deployedSwapFee);
     });
 
-    it('BPool should not have public swaps enabled', async () => {
+    it('BPool should have public swaps enabled', async () => {
         const isPublicSwap = await bPool.isPublicSwap();
-        assert.equal(isPublicSwap, false);
+        assert.equal(isPublicSwap, true);
     });
 
     it('BPool should have initial token balances', async () => {

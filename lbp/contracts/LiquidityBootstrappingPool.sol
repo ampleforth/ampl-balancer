@@ -137,7 +137,8 @@ contract LiquidityBootstrappingPool is PCToken {
         }
 
         _created = true;
-
+        bPool.setPublicSwap(true);
+        
         _mintPoolShare(initialSupply);
         _pushPoolShare(msg.sender, initialSupply);
     }
