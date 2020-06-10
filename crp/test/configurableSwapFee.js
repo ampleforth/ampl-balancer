@@ -1,124 +1,162 @@
 const BFactory = artifacts.require('BFactory');
+const BPool = artifacts.require('BPool');
 const ConfigurableRightsPool = artifacts.require('ConfigurableRightsPool');
 const CRPFactory = artifacts.require('CRPFactory');
 const TToken = artifacts.require('TToken');
 const truffleAssert = require('truffle-assertions');
 
-contract('CRPFactory', async (accounts) => {
+contract('configurableSwapFee', async (accounts) => {
     const admin = accounts[0];
-    const nonAdmin = accounts[1];
     const { toWei } = web3.utils;
-    const { fromWei } = web3.utils;
 
     const MAX = web3.utils.toTwosComplement(-1);
 
-    describe('Factory', () => {
-        let factory;
-        let controller;
-        let CONTROLLER;
-        let WETH;
-        let DAI;
-        let weth;
-        let dai;
+    let crpFactory; let
+        bFactory;
+    let crpPool;
+    let CRPPOOL;
+    let WETH; let DAI; let XYZ; let
+        ABC;
+    let weth; let dai; let abc; let
+        xyz;
 
-        before(async () => {
-            bfactory = await BFactory.deployed();
-            factory = await CRPFactory.deployed();
-            xyz = await TToken.new('XYZ', 'XYZ', 18);
-            weth = await TToken.new('Wrapped Ether', 'WETH', 18);
-            dai = await TToken.new('Dai Stablecoin', 'DAI', 18);
-            abc = await TToken.new('ABC', 'ABC', 18);
+    // These are the intial settings for newCrp:
+    const swapFee = 10 ** 15;
+    const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
+    const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
+    const addTokenTimeLockInBLocks = 10;
+    const minimumWeightChangeBlockPeriod = 10;
+    // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+    const permissions = [false, true, false, false];
 
-            WETH = weth.address;
-            DAI = dai.address;
-            XYZ = xyz.address;
-            ABC = abc.address;
+    before(async () => {
+        /*
+        Uses deployed BFactory & CRPFactory.
+        Deploys new test tokens - XYZ, WETH, DAI, ABC, ASD
+        Mints test tokens for Admin user (account[0])
+        CRPFactory creates new CRP.
+        Admin approves CRP for MAX
+        newCrp call with configurableSwapFee set to true
+        */
+        bFactory = await BFactory.deployed();
+        crpFactory = await CRPFactory.deployed();
+        xyz = await TToken.new('XYZ', 'XYZ', 18);
+        weth = await TToken.new('Wrapped Ether', 'WETH', 18);
+        dai = await TToken.new('Dai Stablecoin', 'DAI', 18);
+        abc = await TToken.new('ABC', 'ABC', 18);
 
-            // admin balances
-            await weth.mint(admin, toWei('100'));
-            await dai.mint(admin, toWei('15000'));
-            await xyz.mint(admin, toWei('100000'));
-            await abc.mint(admin, toWei('100000'));
+        WETH = weth.address;
+        DAI = dai.address;
+        XYZ = xyz.address;
+        ABC = abc.address;
 
-            // Copied this model of code from https://github.com/balancer-labs/balancer-core/blob/5d70da92b1bebaa515254d00a9e064ecac9bd18e/test/math_with_fees.js#L93
-            CONTROLLER = await factory.newCrp.call(
-                bfactory.address,
-                [XYZ, WETH, DAI],
-                [toWei('80000'), toWei('40'), toWei('10000')],
-                [toWei('12'), toWei('1.5'), toWei('1.5')],
-                10**15,
-                10,
-                10,
-                [false, true, false, false]
-            );  
+        // admin balances
+        await weth.mint(admin, toWei('100'));
+        await dai.mint(admin, toWei('15000'));
+        await xyz.mint(admin, toWei('100000'));
+        await abc.mint(admin, toWei('100000'));
 
-            await factory.newCrp(
-                bfactory.address,
-                [XYZ, WETH, DAI],
-                [toWei('80000'), toWei('40'), toWei('10000')],
-                [toWei('12'), toWei('1.5'), toWei('1.5')],
-                10**15,
-                10,
-                10,
-                [false, true, false, false]
-            );  
+        const tokenAddresses = [XYZ, WETH, DAI];
 
-            controller = await ConfigurableRightsPool.at(CONTROLLER);
-            
-            let CONTROLLER_ADDRESS = controller.address;
+        CRPPOOL = await crpFactory.newCrp.call(
+            bFactory.address,
+            tokenAddresses,
+            startBalances,
+            startWeights,
+            swapFee,
+            minimumWeightChangeBlockPeriod,
+            addTokenTimeLockInBLocks,
+            permissions,
+        );
 
-            //console.log(CONTROLLER_ADDRESS);
+        await crpFactory.newCrp(
+            bFactory.address,
+            tokenAddresses,
+            startBalances,
+            startWeights,
+            swapFee,
+            minimumWeightChangeBlockPeriod,
+            addTokenTimeLockInBLocks,
+            permissions,
+        );
 
-            await weth.approve(CONTROLLER_ADDRESS, MAX);
-            await dai.approve(CONTROLLER_ADDRESS, MAX);
-            await xyz.approve(CONTROLLER_ADDRESS, MAX);
+        crpPool = await ConfigurableRightsPool.at(CRPPOOL);
 
-            await controller.createPool();
+        const CRPPOOL_ADDRESS = crpPool.address;
 
-        });
+        await weth.approve(CRPPOOL_ADDRESS, MAX);
+        await dai.approve(CRPPOOL_ADDRESS, MAX);
+        await xyz.approve(CRPPOOL_ADDRESS, MAX);
 
-        describe('configurableSwapFee only', () => {
-            it('Controller should not be able to pause trades', async () => {
-                truffleAssert.reverts(
-                      controller.setPublicSwap(false),
-                      'ERR_NOT_PAUSABLE_SWAP',
-                );  
-            });
-
-            // TODO: read swap fee from bPool before and after the change to make sure it worked
-            it('Controller should be able to change swapFee', async () => {
-                await controller.setSwapFee(toWei('0.001'));
-            });
-
-            it('Controller should not be able to change weights', async () => {
-                truffleAssert.reverts(
-                      controller.updateWeight(WETH, toWei('1')),
-                      'ERR_NOT_CONFIGURABLE_WEIGHTS',
-                );  
-                truffleAssert.reverts(
-                      controller.updateWeightsGradually([toWei('1'), toWei('15'), toWei('15')], 0, 10),
-                      'ERR_NOT_CONFIGURABLE_WEIGHTS',
-                );  
-            });
-
-            it('Controller should not be able to add/remove tokens', async () => {
-                truffleAssert.reverts(
-                      controller.commitAddToken(ABC, toWei('1'), toWei('1')),
-                      'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
-                );  
-
-                truffleAssert.reverts(
-                      controller.applyAddToken(),
-                      'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
-                );  
-
-                truffleAssert.reverts(
-                      controller.removeToken(WETH),
-                      'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
-                );  
-            });
-        });
-
+        await crpPool.createPool(toWei('100'));
     });
 
+    it('crpPool should have correct rights set', async () => {
+        const currentRights = await crpPool.getCurrentRights();
+        assert.sameMembers(currentRights, [false, false, true, false]);
+    });
+
+    it('Non Controller account should not be able to change swapFee', async () => {
+        await truffleAssert.reverts(
+            crpPool.setSwapFee(toWei('0.001'), { from: accounts[1] }),
+            'ERR_NOT_CONTROLLER',
+        );
+    });
+
+    it('Controller should be able to change swapFee', async () => {
+        const bPoolAddr = await crpPool.bPool();
+        const bPool = await BPool.at(bPoolAddr);
+
+        const deployedSwapFee = await bPool.getSwapFee();
+        assert.equal(swapFee, deployedSwapFee);
+
+        const newSwapFee = toWei('0.001');
+        await crpPool.setSwapFee(newSwapFee);
+
+        const newSwapFeeCheck = await bPool.getSwapFee();
+        assert.equal(newSwapFee, newSwapFeeCheck);
+    });
+
+    it('Configurable tokens should revert because non-permissioned', async () => {
+        truffleAssert.reverts(
+            crpPool.commitAddToken(ABC, toWei('1'), toWei('1')),
+            'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
+        );
+
+        truffleAssert.reverts(
+            crpPool.applyAddToken(),
+            'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
+        );
+
+        truffleAssert.reverts(
+            crpPool.removeToken(WETH),
+            'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
+        );
+    });
+
+    it('Set public swap should revert because non-permissioned', async () => {
+        await truffleAssert.reverts(
+            crpPool.setPublicSwap(false),
+            'ERR_NOT_PAUSABLE_SWAP',
+        );
+    });
+
+    it('Configurable weight should revert because non-permissioned', async () => {
+        await truffleAssert.reverts(
+            crpPool.updateWeight(xyz.address, toWei('13')),
+            'ERR_NOT_CONFIGURABLE_WEIGHTS',
+        );
+
+        const block = await web3.eth.getBlock('latest');
+
+        await truffleAssert.reverts(
+            crpPool.updateWeightsGradually([toWei('2'), toWei('5'), toWei('5')], block.number, block.number + 10),
+            'ERR_NOT_CONFIGURABLE_WEIGHTS',
+        );
+
+        await truffleAssert.reverts(
+            crpPool.pokeWeights(),
+            'ERR_NOT_CONFIGURABLE_WEIGHTS',
+        );
+    });
 });

@@ -14,9 +14,10 @@
 pragma solidity 0.5.12;
 
 import "./BNum.sol";
+import "../PCToken.sol";
 
 // Highly opinionated token implementation
-
+/*
 interface IERC20 {
     event Approval(address indexed src, address indexed dst, uint amt);
     event Transfer(address indexed src, address indexed dst, uint amt);
@@ -31,6 +32,7 @@ interface IERC20 {
         address src, address dst, uint amt
     ) external returns (bool);
 }
+*/
 
 contract BTokenBase is BNum {
 

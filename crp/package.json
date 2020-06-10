@@ -6,7 +6,7 @@
     "description": "Smart pool template for Liquidity Bootstrapping Pools",
     "scripts": {
         "compile": "truffle compile",
-        "testrpc": "ganache-cli --deterministic --defaultBalanceEther 500 --gasLimit 100000000",
+        "testrpc": "ganache-cli --deterministic --defaultBalanceEther 500 --gasLimit 100000000 --allowUnlimitedContractSize",
         "test": "truffle test",
         "test:verbose": "VERBOSE=true truffle test",
         "coverage": "yarn solidity-coverage",
@@ -22,6 +22,7 @@
     },
     "homepage": "https://github.com/balancer-labs/smart-pools#readme",
     "devDependencies": {
+        "@openzeppelin/test-helpers": "^0.5.5",
         "chai": "^4.2.0",
         "coveralls": "^3.0.8",
         "eslint": "^6.7.1",
@@ -31,7 +32,7 @@
         "eslint-plugin-react": "^7.17.0",
         "ganache-core": "^2.6.1",
         "mocha": "^6.2.0",
-        "solhint": "^2.3.0",
+        "solhint": "^3.0.0",
         "solidity-coverage": "^0.6.7",
         "standard": "^14.0.2",
         "truffle": "^5.0.41",
@@ -41,6 +42,7 @@
     "dependencies": {
         "dotenv": "^8.2.0",
         "ethers": "^4.0.40",
-        "ganache-cli": "^6.7.0"
+        "ganache-cli": "^6.7.0",
+        "decimal.js": "^10.2.0"
     }
 }

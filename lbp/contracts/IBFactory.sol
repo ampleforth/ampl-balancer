@@ -21,7 +21,8 @@ interface IBPool {
     function bind(address token, uint balance, uint denorm) external;
     function getDenormalizedWeight(address token) external view returns (uint);
     function getTotalDenormalizedWeight() external view returns (uint);
-
+    function setPublicSwap(bool publicSwap) external;
+    
     function calcPoolOutGivenSingleIn(
         uint tokenBalanceIn,
         uint tokenWeightIn,

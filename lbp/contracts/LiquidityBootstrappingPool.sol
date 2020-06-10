@@ -69,8 +69,7 @@ contract LiquidityBootstrappingPool is PCToken {
     uint256 private _endBlock;
 
     IBFactory public _bFactory;
-    IBPool public _bPool;
-    
+    IBPool public bPool;
 
     constructor(
         address factoryAddress,
@@ -93,6 +92,14 @@ contract LiquidityBootstrappingPool is PCToken {
         _swapFee = params[2];
     }
 
+    function getController()
+        external view
+        _viewlock_
+        returns (address)
+    {
+        return _controller;
+    }
+
     function setController(address manager)
         external
         _logs_
@@ -102,7 +109,7 @@ contract LiquidityBootstrappingPool is PCToken {
         _controller = manager;
     }
 
-    function createPool()
+    function createPool(uint256 initialSupply)
         external
         _logs_
         _lock_
@@ -110,11 +117,12 @@ contract LiquidityBootstrappingPool is PCToken {
     {
         require(block.number >= _startBlock, "ERR_START_BLOCK");
         require(!_created, "ERR_IS_CREATED");
+        require(initialSupply > 0, "ERR_INIT_SUPPLY");
 
         // Deploy new BPool
-        _bPool = _bFactory.newBPool();
+        bPool = _bFactory.newBPool();
 
-        _bPool.setSwapFee(_swapFee);
+        bPool.setSwapFee(_swapFee);
 
         for (uint i = 0; i < _tokens.length; i++) {
             address t = _tokens[i];
@@ -124,14 +132,15 @@ contract LiquidityBootstrappingPool is PCToken {
             bool xfer = IERC20(t).transferFrom(msg.sender, address(this), bal);
             require(xfer, "ERR_ERC20_FALSE");
 
-            IERC20(t).approve(address(_bPool), uint(-1));
-            _bPool.bind(t, bal, denorm);
+            IERC20(t).approve(address(bPool), uint(-1));
+            bPool.bind(t, bal, denorm);
         }
 
         _created = true;
-
-        _mintPoolShare(INIT_POOL_SUPPLY);
-        _pushPoolShare(msg.sender, INIT_POOL_SUPPLY);
+        bPool.setPublicSwap(true);
+        
+        _mintPoolShare(initialSupply);
+        _pushPoolShare(msg.sender, initialSupply);
     }
 
     function pokeWeights()
@@ -140,7 +149,7 @@ contract LiquidityBootstrappingPool is PCToken {
         _lock_
     {
         require(_created, "ERR_NOT_CREATED");
-        
+
         for (uint i = 0; i < _tokens.length; i++) {
             uint oldRange = bsub(_endBlock, _startBlock);
             uint newRange = 0;
@@ -152,9 +161,9 @@ contract LiquidityBootstrappingPool is PCToken {
                 newRange = bsub(_endWeights[i], _startWeights[i]);
                 newMin = _startWeights[i];
             }
-            
+
             uint newWeight = badd(bmul(bdiv(bsub(block.number, _startBlock), oldRange), newRange), newMin);
-            _bPool.rebind(_tokens[i], _bPool.getBalance(_tokens[i]), newWeight);
+            bPool.rebind(_tokens[i], bPool.getBalance(_tokens[i]), newWeight);
         }
     }
 
@@ -163,12 +172,12 @@ contract LiquidityBootstrappingPool is PCToken {
         internal
     {
         // Gets current Balance of token i, Bi, and weight of token i, Wi, from BPool.
-        uint tokenBalance = _bPool.getBalance(erc20);
-        uint tokenWeight = _bPool.getDenormalizedWeight(erc20);
+        uint tokenBalance = bPool.getBalance(erc20);
+        uint tokenWeight = bPool.getDenormalizedWeight(erc20);
 
         bool xfer = IERC20(erc20).transferFrom(from, address(this), amount);
         require(xfer, "ERR_ERC20_FALSE");
-        _bPool.rebind(erc20, badd(tokenBalance, amount), tokenWeight);
+        bPool.rebind(erc20, badd(tokenBalance, amount), tokenWeight);
     }
 
     // Rebind BPool and push tokens to address
@@ -176,9 +185,9 @@ contract LiquidityBootstrappingPool is PCToken {
         internal
     {
         // Gets current Balance of token i, Bi, and weight of token i, Wi, from BPool.
-        uint tokenBalance = _bPool.getBalance(erc20);
-        uint tokenWeight = _bPool.getDenormalizedWeight(erc20);
-        _bPool.rebind(erc20, bsub(tokenBalance, amount), tokenWeight);
+        uint tokenBalance = bPool.getBalance(erc20);
+        uint tokenWeight = bPool.getDenormalizedWeight(erc20);
+        bPool.rebind(erc20, bsub(tokenBalance, amount), tokenWeight);
 
         bool xfer = IERC20(erc20).transfer(to, amount);
         require(xfer, "ERR_ERC20_FALSE");
@@ -198,7 +207,7 @@ contract LiquidityBootstrappingPool is PCToken {
 
         for (uint i = 0; i < _tokens.length; i++) {
             address t = _tokens[i];
-            uint bal = _bPool.getBalance(t);
+            uint bal = bPool.getBalance(t);
             uint tokenAmountIn = bmul(ratio, bal);
             emit LOG_JOIN(msg.sender, t, tokenAmountIn);
             _pullUnderlying(t, msg.sender, tokenAmountIn);
@@ -223,7 +232,7 @@ contract LiquidityBootstrappingPool is PCToken {
 
         for (uint i = 0; i < _tokens.length; i++) {
             address t = _tokens[i];
-            uint bal = _bPool.getBalance(t);
+            uint bal = bPool.getBalance(t);
             uint tAo = bmul(ratio, bal);
             emit LOG_EXIT(msg.sender, t, tAo);
             _pushUnderlying(t, msg.sender, tAo);
@@ -236,14 +245,14 @@ contract LiquidityBootstrappingPool is PCToken {
         _lock_
         returns (uint poolAmountOut)
     {
-        require(_bPool.isBound(tokenIn), "ERR_NOT_BOUND");
         require(_created, "ERR_NOT_CREATED");
+        require(bPool.isBound(tokenIn), "ERR_NOT_BOUND");
 
-        poolAmountOut = _bPool.calcPoolOutGivenSingleIn(
-                            _bPool.getBalance(tokenIn),
-                            _bPool.getDenormalizedWeight(tokenIn),
+        poolAmountOut = bPool.calcPoolOutGivenSingleIn(
+                            bPool.getBalance(tokenIn),
+                            bPool.getDenormalizedWeight(tokenIn),
                             _totalSupply,
-                            _bPool.getTotalDenormalizedWeight(),
+                            bPool.getTotalDenormalizedWeight(),
                             tokenAmountIn,
                             _swapFee
                         );
@@ -257,20 +266,20 @@ contract LiquidityBootstrappingPool is PCToken {
         return poolAmountOut;
     }
 
-    function joinswapPoolAmountOut(uint poolAmountOut, address tokenIn)
+    function joinswapPoolAmountOut(address tokenIn, uint poolAmountOut)
         external
         _logs_
         _lock_
         returns (uint tokenAmountIn)
     {
-        require(_bPool.isBound(tokenIn), "ERR_NOT_BOUND");
         require(_created, "ERR_NOT_CREATED");
+        require(bPool.isBound(tokenIn), "ERR_NOT_BOUND");
 
-        tokenAmountIn = _bPool.calcSingleInGivenPoolOut(
-                            _bPool.getBalance(tokenIn),
-                            _bPool.getDenormalizedWeight(tokenIn),
+        tokenAmountIn = bPool.calcSingleInGivenPoolOut(
+                            bPool.getBalance(tokenIn),
+                            bPool.getDenormalizedWeight(tokenIn),
                             _totalSupply,
-                            _bPool.getTotalDenormalizedWeight(),
+                            bPool.getTotalDenormalizedWeight(),
                             poolAmountOut,
                             _swapFee
                         );
@@ -284,20 +293,20 @@ contract LiquidityBootstrappingPool is PCToken {
         return tokenAmountIn;
     }
 
-    function exitswapPoolAmountIn(uint poolAmountIn, address tokenOut)
+    function exitswapPoolAmountIn(address tokenOut, uint poolAmountIn)
         external
         _logs_
         _lock_
         returns (uint tokenAmountOut)
     {
-        require(_bPool.isBound(tokenOut), "ERR_NOT_BOUND");
         require(_created, "ERR_NOT_CREATED");
+        require(bPool.isBound(tokenOut), "ERR_NOT_BOUND");
 
-        tokenAmountOut = _bPool.calcSingleOutGivenPoolIn(
-                            _bPool.getBalance(tokenOut),
-                            _bPool.getDenormalizedWeight(tokenOut),
+        tokenAmountOut = bPool.calcSingleOutGivenPoolIn(
+                            bPool.getBalance(tokenOut),
+                            bPool.getDenormalizedWeight(tokenOut),
                             _totalSupply,
-                            _bPool.getTotalDenormalizedWeight(),
+                            bPool.getTotalDenormalizedWeight(),
                             poolAmountIn,
                             _swapFee
                         );
@@ -317,14 +326,14 @@ contract LiquidityBootstrappingPool is PCToken {
         _lock_
         returns (uint poolAmountIn)
     {
-        require(_bPool.isBound(tokenOut), "ERR_NOT_BOUND");
         require(_created, "ERR_NOT_CREATED");
+        require(bPool.isBound(tokenOut), "ERR_NOT_BOUND");
 
-        poolAmountIn = _bPool.calcPoolInGivenSingleOut(
-                            _bPool.getBalance(tokenOut),
-                            _bPool.getDenormalizedWeight(tokenOut),
+        poolAmountIn = bPool.calcPoolInGivenSingleOut(
+                            bPool.getBalance(tokenOut),
+                            bPool.getDenormalizedWeight(tokenOut),
                             _totalSupply,
-                            _bPool.getTotalDenormalizedWeight(),
+                            bPool.getTotalDenormalizedWeight(),
                             tokenAmountOut,
                             _swapFee
                         );

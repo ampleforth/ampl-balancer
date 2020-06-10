@@ -23,8 +23,6 @@ contract LBPFactory {
 
     mapping(address=>bool) private _isLbp;
 
-    constructor() public {}
-
     function isLbp(address b)
         external view returns (bool)
     {
@@ -55,5 +53,4 @@ contract LBPFactory {
         lbp.setController(msg.sender);
         return lbp;
     }
-    
 }
