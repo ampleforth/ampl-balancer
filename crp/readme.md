@@ -1,4 +1,4 @@
-##CRP - Configurable Rights Pool
+## CRP - Configurable Rights Pool ##
 This is a smart pool factory that allows anyone to deploy smart pools with 4 different rights that can be individually chosen: 
 
 1) pausableSwap: pool creator can pause swaps
