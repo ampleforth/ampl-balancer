@@ -22,7 +22,7 @@ contract('CRPFactory', async (accounts) => {
     let xyz;
     const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
-    const addTokenTimeLockInBLocks = 10;
+    const addTokenTimeLockInBlocks = 10;
 
     before(async () => {
         bFactory = await BFactory.deployed();
@@ -47,7 +47,7 @@ contract('CRPFactory', async (accounts) => {
             startWeights,
             10 ** 15, // swapFee
             10, // minimumWeightChangeBlockPeriod
-            addTokenTimeLockInBLocks, // addTokenTimeLockInBLocks
+            addTokenTimeLockInBlocks, // addTokenTimeLockInBlocks
             [false, false, false, true],
             // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );
@@ -59,7 +59,7 @@ contract('CRPFactory', async (accounts) => {
             startWeights,
             10 ** 15, // swapFee
             10, // minimumWeightChangeBlockPeriod
-            addTokenTimeLockInBLocks, // addTokenTimeLockInBLocks
+            addTokenTimeLockInBlocks, // addTokenTimeLockInBlocks
             [false, false, false, true],
             // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );

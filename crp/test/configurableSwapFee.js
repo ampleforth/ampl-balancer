@@ -24,7 +24,7 @@ contract('configurableSwapFee', async (accounts) => {
     const swapFee = 10 ** 15;
     const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
-    const addTokenTimeLockInBLocks = 10;
+    const addTokenTimeLockInBlocks = 10;
     const minimumWeightChangeBlockPeriod = 10;
     // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
     const permissions = [false, true, false, false];
@@ -65,7 +65,7 @@ contract('configurableSwapFee', async (accounts) => {
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBLocks,
+            addTokenTimeLockInBlocks,
             permissions,
         );
 
@@ -76,7 +76,7 @@ contract('configurableSwapFee', async (accounts) => {
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBLocks,
+            addTokenTimeLockInBlocks,
             permissions,
         );
 

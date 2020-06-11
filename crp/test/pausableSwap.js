@@ -24,7 +24,7 @@ contract('pausableSwap', async (accounts) => {
     const startingDaiWeight = '1.5';
     const startWeights = [toWei(startingXyzWeight), toWei(startingWethWeight), toWei(startingDaiWeight)];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
-    const addTokenTimeLockInBLocks = 10;
+    const addTokenTimeLockInBlocks = 10;
     const minimumWeightChangeBlockPeriod = 10;
     // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
     const permissions = [true, false, false, false];
@@ -62,7 +62,7 @@ contract('pausableSwap', async (accounts) => {
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBLocks,
+            addTokenTimeLockInBlocks,
             permissions,
         );
 
@@ -73,7 +73,7 @@ contract('pausableSwap', async (accounts) => {
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBLocks,
+            addTokenTimeLockInBlocks,
             permissions,
         );
 

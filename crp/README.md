@@ -15,7 +15,7 @@ Creates new ConfigurableRightsPools with caller as contract controller.
 * `uint256[] startWeights` - Array of initial weights for the tokens above.
 * `uint swapFee` - Initial swap fee for the pool.
 * `uint minimumWeightChangeBlockPeriod` - Total duration of the changeUpdate duration. So you cannot call updateWeightsGradually with a duration (endBlock - startBlock) < minimumWeightChangeBlockPeriod.
-* `uint addTokenTimeLockInBLocks` - Amount of blocks that have to pass before a new commited token can be applied.
+* `uint addTokenTimeLockInBlocks` - Amount of blocks that have to pass before a new commited token can be applied.
 *  `bool[4] rights` - Bool array of rights. These are - [pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens] Set for true to allow.
 
 ###### Response
@@ -42,11 +42,11 @@ await crpFactory.newCrp(
 
 commitAddToken(address token, uint balance, uint denormalizedWeight):
 
-Precommits a new token that can be applied addTokenTimeLockInBLocks blocks in the future.
+Precommits a new token that can be applied addTokenTimeLockInBlocks blocks in the future.
 
 applyAddToken():
 
-Applies above committed token & mints pool shares if addTokenTimeLockInBLocks blocks in the future.
+Applies above committed token & mints pool shares if addTokenTimeLockInBlocks blocks in the future.
 
 removeToken(address token):
 
