@@ -49,7 +49,7 @@ contract('configurableWeights', async (accounts) => {
     let startingDaiWeight = '1.5';
     const startWeights = [toWei(startingXyzWeight), toWei(startingWethWeight), toWei(startingDaiWeight)];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
-    const addTokenTimeLockInBLocks = 10;
+    const addTokenTimeLockInBlocks = 10;
     const minimumWeightChangeBlockPeriod = 10;
     // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
     const permissions = [false, false, true, false];
@@ -98,7 +98,7 @@ contract('configurableWeights', async (accounts) => {
                 startWeights,
                 swapFee,
                 minimumWeightChangeBlockPeriod,
-                addTokenTimeLockInBLocks,
+                addTokenTimeLockInBlocks,
                 permissions,
             );
 
@@ -109,7 +109,7 @@ contract('configurableWeights', async (accounts) => {
                 startWeights,
                 swapFee,
                 minimumWeightChangeBlockPeriod,
-                addTokenTimeLockInBLocks,
+                addTokenTimeLockInBlocks,
                 permissions,
             );
 
@@ -273,7 +273,7 @@ contract('configurableWeights', async (accounts) => {
                 startWeights,
                 swapFee,
                 minimumWeightChangeBlockPeriod,
-                addTokenTimeLockInBLocks,
+                addTokenTimeLockInBlocks,
                 permissions,
             );
 
@@ -284,7 +284,7 @@ contract('configurableWeights', async (accounts) => {
                 startWeights,
                 swapFee,
                 minimumWeightChangeBlockPeriod,
-                addTokenTimeLockInBLocks,
+                addTokenTimeLockInBlocks,
                 permissions,
             );
 

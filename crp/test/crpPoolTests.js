@@ -25,7 +25,7 @@ contract('crpPoolTests', async (accounts) => {
     const swapFee = toWei('0.003');
     const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
-    const addTokenTimeLockInBLocks = 10;
+    const addTokenTimeLockInBlocks = 10;
     const minimumWeightChangeBlockPeriod = 10;
 
     let crpFactory; let bFactory; let bPool; let
@@ -73,7 +73,7 @@ contract('crpPoolTests', async (accounts) => {
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBLocks,
+            addTokenTimeLockInBlocks,
             [true, true, true, true],
             // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );
@@ -85,7 +85,7 @@ contract('crpPoolTests', async (accounts) => {
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBLocks,
+            addTokenTimeLockInBlocks,
             [true, true, true, true],
             // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );

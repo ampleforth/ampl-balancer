@@ -49,7 +49,7 @@ contract CRPFactory {
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBLocks,
+            addTokenTimeLockInBlocks,
             rights
         );
         _isCrp[address(crp)] = true;

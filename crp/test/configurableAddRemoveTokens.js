@@ -32,7 +32,7 @@ contract('configurableAddRemoveTokens', async (accounts) => {
     const swapFee = 10 ** 15;
     const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
-    const addTokenTimeLockInBLocks = 10;
+    const addTokenTimeLockInBlocks = 10;
     const minimumWeightChangeBlockPeriod = 10;
     // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
     const permissions = [false, false, false, true];
@@ -76,7 +76,7 @@ contract('configurableAddRemoveTokens', async (accounts) => {
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBLocks,
+            addTokenTimeLockInBlocks,
             permissions,
         );
 
@@ -87,7 +87,7 @@ contract('configurableAddRemoveTokens', async (accounts) => {
             startWeights,
             swapFee,
             minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBLocks,
+            addTokenTimeLockInBlocks,
             permissions,
         );
 
@@ -150,7 +150,7 @@ contract('configurableAddRemoveTokens', async (accounts) => {
 
     it('Controller should be able to commitAddToken again', async () => {
         const block = await web3.eth.getBlock('latest');
-        applyAddTokenValidBlock = block.number + addTokenTimeLockInBLocks;
+        applyAddTokenValidBlock = block.number + addTokenTimeLockInBlocks;
         console.log(`Block commitAddToken for ABC: ${block.number}`);
         console.log(`applyAddToken valid block: ${applyAddTokenValidBlock}`);
         await crpPool.commitAddToken(ABC, toWei('10000'), toWei('1.5'));
@@ -170,7 +170,7 @@ contract('configurableAddRemoveTokens', async (accounts) => {
         assert.equal(adminAbcBalance, toWei('100000'));
     });
 
-    it('Controller should not be able to applyAddToken before addTokenTimeLockInBLocks', async () => {
+    it('Controller should not be able to applyAddToken before addTokenTimeLockInBlocks', async () => {
         let block = await web3.eth.getBlock('latest');
 
         assert(block.number < applyAddTokenValidBlock, 'Block Should Be Less Than Valid Block At Start Of Test');
@@ -348,12 +348,12 @@ contract('configurableAddRemoveTokens', async (accounts) => {
 
     it('Should fail when adding a token without enough token balance', async () => {
         const block = await web3.eth.getBlock('latest');
-        applyAddTokenValidBlock = block.number + addTokenTimeLockInBLocks;
+        applyAddTokenValidBlock = block.number + addTokenTimeLockInBlocks;
         console.log(`Block commitAddToken for DAI: ${block.number}`);
         console.log(`applyAddToken valid block: ${applyAddTokenValidBlock}`);
         await crpPool.commitAddToken(DAI, toWei('150000'), toWei('1.5'));
 
-        let advanceBlocks = addTokenTimeLockInBLocks + 2;
+        let advanceBlocks = addTokenTimeLockInBlocks + 2;
         while (--advanceBlocks) await time.advanceBlock();
 
         await truffleAssert.reverts(
