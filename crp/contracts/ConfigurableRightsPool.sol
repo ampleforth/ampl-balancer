@@ -73,6 +73,7 @@ contract ConfigurableRightsPool is PCToken {
     uint256 private _endBlock;
     uint private _minimumWeightChangeBlockPeriod;
     uint private _addTokenTimeLockInBlocks; // Number of blocks that adding a token requires to wait
+
     bool[4] private _rights; // TODO: consider making all public so we don't need getter functions
 
     struct NewToken {
