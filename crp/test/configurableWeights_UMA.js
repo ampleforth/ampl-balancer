@@ -54,7 +54,7 @@ contract('CRPFactory', async (accounts) => {
                 10, //minimumWeightChangeBlockPeriod
                 10, //addTokenTimeLockInBlocks
                 [false, false, true, false] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
-            );  
+            );
 
             await factory.newCrp(
                 bfactory.address,
@@ -65,10 +65,10 @@ contract('CRPFactory', async (accounts) => {
                 10, //minimumWeightChangeBlockPeriod
                 10, //addTokenTimeLockInBlocks
                 [false, false, true, false] // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
-            );  
+            );
 
             controller = await ConfigurableRightsPool.at(CONTROLLER);
-            
+
             let CONTROLLER_ADDRESS = controller.address;
 
             //console.log(CONTROLLER_ADDRESS);
@@ -77,7 +77,7 @@ contract('CRPFactory', async (accounts) => {
             await dai.approve(CONTROLLER_ADDRESS, MAX);
             await xyz.approve(CONTROLLER_ADDRESS, MAX);
 
-            await controller.createPool();
+            await controller.createPool(toWei('100'));
         });
 
         describe('configurableWeights only', () => {
@@ -85,31 +85,31 @@ contract('CRPFactory', async (accounts) => {
             //     truffleAssert.reverts(
             //           controller.setPublicSwap(false),
             //           'ERR_NOT_PAUSABLE_SWAP',
-            //     );  
+            //     );
             // });
-            
+
             // it('Controller should not be able to change swapFee', async () => {
             //     truffleAssert.reverts(
             //           controller.setSwapFee(toWei('1')),
             //           'ERR_NOT_CONFIGURABLE_SWAP_FEE',
-            //     );  
+            //     );
             // });
 
             // it('Controller should not be able to add/remove tokens', async () => {
             //     truffleAssert.reverts(
             //           controller.commitAddToken(ABC, toWei('1'), toWei('1')),
             //           'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
-            //     );  
+            //     );
 
             //     truffleAssert.reverts(
             //           controller.applyAddToken(),
             //           'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
-            //     );  
+            //     );
 
             //     truffleAssert.reverts(
             //           controller.removeToken(WETH),
             //           'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
-            //     );  
+            //     );
             // });
 
             // it('Controller should be able to change weigths with updateWeight()', async () => {
@@ -117,7 +117,7 @@ contract('CRPFactory', async (accounts) => {
             //     //console.log(balance.toString());
 
             //     await controller.updateWeight(WETH, toWei('3')); // This should double WETH weight from 1.5 to 3.
-                
+
             //     balance = await controller.balanceOf.call(admin);
             //     //console.log(balance.toString());
 
@@ -127,8 +127,8 @@ contract('CRPFactory', async (accounts) => {
             //     // BPT Balance should go from 100 to 110 since total weight went from 15 to 16.5
             //     assert.equal(balance.toString(), toWei('110'));
             //     // WETH Balance should go from 60 to 20 (since 40 WETH are deposited to pool to get if from 40 to 80 WETH)
-            //     assert.equal(adminWETHBalance.toString(), toWei('20')); 
-            // });        
+            //     assert.equal(adminWETHBalance.toString(), toWei('20'));
+            // });
 
             // it('Controller should not be able to change weigths'+
             //  'when they dont have enough tokens', async () => {
@@ -136,7 +136,7 @@ contract('CRPFactory', async (accounts) => {
             //     truffleAssert.reverts(
             //           controller.updateWeight(WETH, toWei('4.5')),
             //           'ERR_INSUFFICIENT_BAL',
-            //     ); 
+            //     );
             // });
 
             // it('Controller should not be able to call updateWeightsGradually() with invalid range', async () => {
@@ -147,7 +147,7 @@ contract('CRPFactory', async (accounts) => {
             //         controller.updateWeightsGradually([toWei('3'), toWei('6'), toWei('6')], block.number, block.number + blockRange),
             //           'ERR_WEIGHT_CHANGE_PERIOD_BELOW_MIN',
             //     );
-            // });    
+            // });
 
             // it('Controller should not be able to call updateWeightsGradually() with invalid weights', async () => {
             //     blockRange = 10;
@@ -164,7 +164,7 @@ contract('CRPFactory', async (accounts) => {
             //         controller.updateWeightsGradually([toWei('20'), toWei('20'), toWei('11')], block.number, block.number + blockRange),
             //           'ERR_MAX_TOTAL_WEIGHT',
             //     );
-            // });    
+            // });
 
             // async function waitForInterest(nBlocks = 100) {
             //     console.log(`Wait for ${nBlocks} blocks...`);
@@ -183,7 +183,7 @@ contract('CRPFactory', async (accounts) => {
                 console.log("Start block for June -> July flipping: "+startBlock)
                 console.log("End   block for June -> July flipping: "+endBlock)
                 await controller.updateWeightsGradually(endWeights, startBlock, endBlock);
-            });    
+            });
 
             it('Should revert because too early to pokeWeights()', async () => {
                 block = await web3.eth.getBlock("latest");
@@ -192,7 +192,7 @@ contract('CRPFactory', async (accounts) => {
                      controller.pokeWeights(),
                       'ERR_CANT_POKE_YET',
                 );
-            });  
+            });
 
             it('Should be able to pokeWeights()', async () => {
                 for (var i = 0; i < blockRange+10; i++) {
@@ -203,7 +203,7 @@ contract('CRPFactory', async (accounts) => {
                         (weightXYZ*2.5/10**18).toString()+"%\tJune: "+(weightWETH*2.5/10**18).toString()+"%");
                     await controller.pokeWeights();
                 }
-            });  
+            });
 
             it('Controller should be able to call updateWeightsGradually() again', async () => {
                 blockRange = 50;
@@ -216,7 +216,7 @@ contract('CRPFactory', async (accounts) => {
                 console.log("Start block for July -> August flipping: "+startBlock)
                 console.log("End   block for July -> August flipping: "+endBlock)
                 await controller.updateWeightsGradually(endWeights, startBlock, endBlock);
-            });    
+            });
 
             it('Should revert because too early to pokeWeights()', async () => {
                 // block = await web3.eth.getBlock("latest");
@@ -225,19 +225,19 @@ contract('CRPFactory', async (accounts) => {
                      controller.pokeWeights(),
                       'ERR_CANT_POKE_YET',
                 );
-            });  
+            });
 
             it('Should be able to pokeWeights()', async () => {
                 for (var i = 0; i < blockRange+10; i++) {
                     weightXYZ = await controller.getDenormalizedWeight(XYZ);
                     weightWETH = await controller.getDenormalizedWeight(WETH);
-                    block = await web3.eth.getBlock("latest");                    
+                    block = await web3.eth.getBlock("latest");
                     console.log("Block: "+block.number+". Weights -> July: "+
                         (weightXYZ*2.5/10**18).toString()+"%\tAugust: "+(weightWETH*2.5/10**18).toString()+"%");
                     await controller.pokeWeights();
                 }
 
-            });  
+            });
 
 
         });
