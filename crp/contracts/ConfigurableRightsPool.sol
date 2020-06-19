@@ -12,6 +12,7 @@ import "./utils/BalancerOwnable.sol";
 // Interfaces
 
 // Libraries
+import { RightsManager } from "../libraries/RightsManager.sol";
 import "../libraries/BalancerSafeMath.sol";
 
 // Contracts
@@ -45,7 +46,8 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
     IBFactory public bFactory;
     IBPool public bPool;
 
-    bool[4] private _rights;
+    // Struct holding the rights configuration
+    RightsManager.Rights private _rights;
 
     // This is for adding a new (currently unbound) token to the pool
     // It's a two-step process: commitAddToken(), then applyAddToken()
@@ -85,13 +87,13 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
     event LOG_JOIN(
         address indexed caller,
         address indexed tokenIn,
-        uint256 tokenAmountIn
+        uint tokenAmountIn
     );
 
     event LOG_EXIT(
         address indexed caller,
         address indexed tokenOut,
-        uint256 tokenAmountOut
+        uint tokenAmountOut
     );
 
     // Modifiers
@@ -127,8 +129,8 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         address factoryAddress,
         string memory symbol,
         address[] memory tokens,
-        uint256[] memory startBalances,
-        uint256[] memory startWeights,
+        uint[] memory startBalances,
+        uint[] memory startWeights,
         uint swapFee,
         bool[4] memory rights
     )
@@ -150,7 +152,9 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _swapFee = swapFee;
         _minimumWeightChangeBlockPeriod = DEFAULT_MIN_WEIGHT_CHANGE_BLOCK_PERIOD;
         _addTokenTimeLockInBlocks = DEFAULT_ADD_TOKEN_TIME_LOCK_IN_BLOCKS;
-        _rights = rights;
+        _rights = RightsManager.Rights(rights[0], rights[1], rights[2], rights[3]);
+        // This would allow expansion of rights, but get an "Internal compiler error" trying to use bool[]
+        //_rights = RightsManager.constructRights(rights);
         _newToken.isCommitted = false;
     }
 
@@ -166,12 +170,10 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         view
         returns (bool[4] memory rights)
     {
-        return _rights;
-        //return [_rights.canPauseSwapping,
-        //        _rights.canChangeSwapFee,
-        //        _rights.canChangeWeights,
-        //        _rights.canAddRemoveTokens,
-        //        _rights.canWhitelistLPs];
+        return [_rights.canPauseSwapping,
+                _rights.canChangeSwapFee,
+                _rights.canChangeWeights,
+                _rights.canAddRemoveTokens];
     }
 
     /**
@@ -213,8 +215,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _onlyOwner_
         _needsBPool_
     {
-        //require(_rights.canChangeSwapFee, "ERR_NOT_CONFIGURABLE_SWAP_FEE");
-        require(_rights[1], "ERR_NOT_CONFIGURABLE_SWAP_FEE");
+        require(_rights.canChangeSwapFee, "ERR_NOT_CONFIGURABLE_SWAP_FEE");
 
         bPool.setSwapFee(swapFee);
     }
@@ -249,8 +250,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _onlyOwner_
         _needsBPool_
     {
-        //require(_rights.canPauseSwapping, "ERR_NOT_PAUSABLE_SWAP");
-        require(_rights[0], "ERR_NOT_PAUSABLE_SWAP");
+        require(_rights.canPauseSwapping, "ERR_NOT_PAUSABLE_SWAP");
 
         bPool.setPublicSwap(publicSwap);
     }
@@ -261,7 +261,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
      *      Can be changed if the canChangeSwapFee permission is enabled
      * @param initialSupply starting token balance
      */
-    function createPool(uint256 initialSupply)
+    function createPool(uint initialSupply)
         external
         _logs_
         _lock_
@@ -321,8 +321,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _onlyOwner_
         _needsBPool_
     {
-        require(_rights[2], "ERR_NOT_CONFIGURABLE_WEIGHTS");
-        //require(_rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
+        require(_rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
 
         require(newWeight >= MIN_WEIGHT, "ERR_MIN_WEIGHT");
         require(newWeight <= MAX_WEIGHT, "ERR_MAX_WEIGHT");
@@ -412,16 +411,28 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
      * @param newWeights - final weights we want to get to
      * @param startBlock - when weights should start to change
      * @param endBlock - when weights will be at their final values
+     * Should we even be able to override these? Too low level?
+     * @param minimumWeightChangeBlockPeriod - can override default value
+     * @param addTokenTimeLockInBlocks - can override default value
      */
-    function updateWeightsGradually(uint256[] calldata newWeights, uint256 startBlock, uint256 endBlock)
+    function updateWeightsGradually(
+        uint[] calldata newWeights,
+        uint startBlock,
+        uint endBlock,
+        uint minimumWeightChangeBlockPeriod,
+        uint addTokenTimeLockInBlocks
+    )
         external
         _logs_
         _lock_
         _onlyOwner_
         _needsBPool_
     {
-        require(_rights[2], "ERR_NOT_CONFIGURABLE_WEIGHTS");
-        // require(_rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
+        require(_rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
+
+        // Set these values (if overloaded function called, just set to default values)
+        _minimumWeightChangeBlockPeriod = minimumWeightChangeBlockPeriod;
+        _addTokenTimeLockInBlocks = addTokenTimeLockInBlocks;
 
         // Enforce a minimum time over which to make the changes
         // The also prevents endBlock <= startBlock
@@ -467,6 +478,31 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
     }
 
     /**
+     * @notice Update weights in a predetermined way, between startBlock and endBlock,
+     *         through external cals to pokeWeights (using default values of the change period)
+     * @dev Can override the change period parameters by calling the overloaded function directly
+     * @param newWeights - final weights we want to get to
+     * @param startBlock - when weights should start to change
+     * @param endBlock - when weights will be at their final values
+
+    Why can't I overload this?
+
+    function updateWeightsGradually(
+        uint[] calldata newWeights,
+        uint startBlock,
+        uint endBlock
+    )
+        external
+    {
+        this.updateWeightsGradually(
+            newWeights,
+            startBlock,
+            endBlock,
+            DEFAULT_MIN_WEIGHT_CHANGE_BLOCK_PERIOD,
+            DEFAULT_ADD_TOKEN_TIME_LOCK_IN_BLOCKS);
+    } */
+
+    /**
      * @notice External function called to make the contract update weights according to plan
      * @dev Still works if we poke after the end of the period; also works if the weights don't change
      *      Resets if we are poking beyond the end, so that we can do it again
@@ -477,8 +513,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _lock_
         _needsBPool_
     {
-        //require(_rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
-        require(_rights[2], "ERR_NOT_CONFIGURABLE_WEIGHTS");
+        require(_rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
         require(block.number >= _startBlock, "ERR_CANT_POKE_YET");
 
         // Do nothing if we call this when there is no update plan
@@ -569,8 +604,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _onlyOwner_
         _needsBPool_
     {
-        require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
-        //require(_rights.canAddRemoveTokens, "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
+        require(_rights.canAddRemoveTokens, "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
         require(bPool.isBound(token) == false, "ERR_IS_BOUND");
 
         require(denormalizedWeight <= MAX_WEIGHT, "ERR_WEIGHT_ABOVE_MAX");
@@ -599,8 +633,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _onlyOwner_
         _needsBPool_
     {
-        require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
-        //require(_rights.canAddRemoveTokens, "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
+        require(_rights.canAddRemoveTokens, "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
         require(_newToken.isCommitted, "ERR_NO_TOKEN_COMMIT");
         require(BalancerSafeMath.bsub(block.number, _newToken.commitBlock) >= _addTokenTimeLockInBlocks,
                                       "ERR_TIMELOCK_STILL_COUNTING");
@@ -638,8 +671,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _onlyOwner_
         _needsBPool_
     {
-        require(_rights[3], "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
-        //require(_rights.canAddRemoveTokens, "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
+        require(_rights.canAddRemoveTokens, "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
 
         uint totalSupply = totalSupply();
 
@@ -707,7 +739,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         }
     }
 
-    function joinswapExternAmountIn(address tokenIn, uint256 tokenAmountIn)
+    function joinswapExternAmountIn(address tokenIn, uint tokenAmountIn)
         external
         _logs_
         _lock_

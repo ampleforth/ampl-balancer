@@ -92,7 +92,7 @@ contract('CRPFactory', async (accounts) => {
                 const endWeights = [toWei('39'), toWei('1')];
                 console.log(`Start block for June -> July flipping: ${startBlock}`);
                 console.log(`End   block for June -> July flipping: ${endBlock}`);
-                await controller.updateWeightsGradually(endWeights, startBlock, endBlock);
+                await controller.updateWeightsGradually(endWeights, startBlock, endBlock, 10, 10);
             });
 
             it('Should revert because too early to pokeWeights()', async () => {
@@ -148,7 +148,7 @@ contract('CRPFactory', async (accounts) => {
                 console.log(`Start block for July -> August flipping: ${startBlock}`);
                 console.log(`End   block for July -> August flipping: ${endBlock}`);
 
-                await controller.updateWeightsGradually(endWeights, startBlock, endBlock);
+                await controller.updateWeightsGradually(endWeights, startBlock, endBlock, 10, 10);
             });
 
             it('Should revert because too early to pokeWeights()', async () => {

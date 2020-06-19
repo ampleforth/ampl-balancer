@@ -328,7 +328,7 @@ contract('configurableAddRemoveTokens', async (accounts) => {
         const block = await web3.eth.getBlock('latest');
 
         await truffleAssert.reverts(
-            crpPool.updateWeightsGradually([toWei('2'), toWei('5'), toWei('5')], block.number, block.number + 10),
+            crpPool.updateWeightsGradually([toWei('2'), toWei('5'), toWei('5')], block.number, block.number + 10, 10, 10),
             'ERR_NOT_CONFIGURABLE_WEIGHTS',
         );
 
