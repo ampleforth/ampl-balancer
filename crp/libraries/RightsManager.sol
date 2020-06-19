@@ -2,8 +2,6 @@
 pragma solidity 0.5.12;
 
 // Needed to handle structures externally
-// If constructRights is internal, we can use memory and don't need this:
-// function constructRights(bool[] memory a) internal pure returns (Rights memory)
 pragma experimental ABIEncoderV2;
 
 /**
@@ -60,7 +58,7 @@ library RightsManager {
      * @param _permission - The permission to check
      * @return Boolean true if it has the permission
      */
-    function hasPermission(Rights storage self, Permissions _permission) external view returns (bool) {
+    function hasPermission(Rights calldata self, Permissions _permission) external pure returns (bool) {
         if (Permissions.PAUSE_SWAPPING == _permission) {
             return self.canPauseSwapping;
         }

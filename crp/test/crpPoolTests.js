@@ -26,6 +26,12 @@ contract('crpPoolTests', async (accounts) => {
     const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
     const SYMBOL = 'BSP';
+    const permissions = {
+        canPauseSwapping: true,
+        canChangeSwapFee: true,
+        canChangeWeights: true,
+        canAddRemoveTokens: true,
+    };
 
     let crpFactory; let bFactory; let bPool; let
         crpPool;
@@ -72,10 +78,7 @@ contract('crpPoolTests', async (accounts) => {
             startBalances,
             startWeights,
             swapFee,
-            //minimumWeightChangeBlockPeriod,
-            //addTokenTimeLockInBlocks,
-            [true, true, true, true],
-            // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+            permissions,
         );
 
         await crpFactory.newCrp(
@@ -85,10 +88,7 @@ contract('crpPoolTests', async (accounts) => {
             startBalances,
             startWeights,
             swapFee,
-            //minimumWeightChangeBlockPeriod,
-            //addTokenTimeLockInBlocks,
-            [true, true, true, true],
-            // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+            permissions,
         );
 
         crpPool = await ConfigurableRightsPool.at(CRPPOOL);
@@ -111,8 +111,13 @@ contract('crpPoolTests', async (accounts) => {
     });
 
     it('crpPool should have all rights set to true', async () => {
-        const currentRights = await crpPool.getCurrentRights();
-        assert.sameMembers(currentRights, [true, true, true, true]);
+        // const currentRights = await crpPool.getCurrentRights();
+        // assert.sameMembers(currentRights, [true, true, true, true]);
+        let x;
+        for (x = 0; x <= 3; x++) {
+            const perm = await crpPool.hasPermission(x);
+            assert.isTrue(perm);
+        }
     });
 
     it('Admin should have no initial BPT', async () => {
@@ -135,8 +140,13 @@ contract('crpPoolTests', async (accounts) => {
     });
 
     it('crpPool should have all rights set to true', async () => {
-        const currentRights = await crpPool.getCurrentRights();
-        assert.sameMembers(currentRights, [true, true, true, true]);
+        // const currentRights = await crpPool.getCurrentRights();
+        // assert.sameMembers(currentRights, [true, true, true, true]);
+        let x;
+        for (x = 0; x <= 3; x++) {
+            const perm = await crpPool.hasPermission(x);
+            assert.isTrue(perm);
+        }
     });
 
     it('should not be able to createPool twice', async () => {

@@ -35,8 +35,13 @@ contract('configurableAddRemoveTokens', async (accounts) => {
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
     const addTokenTimeLockInBlocks = 10;
     const SYMBOL = 'BSP';
-    // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
-    const permissions = [false, false, false, true];
+    // const permissions = [false, false, false, true];
+    const permissions = {
+        canPauseSwapping: false,
+        canChangeSwapFee: false,
+        canChangeWeights: false,
+        canAddRemoveTokens: true,
+    };
 
     before(async () => {
         /*
@@ -104,8 +109,18 @@ contract('configurableAddRemoveTokens', async (accounts) => {
     });
 
     it('crpPool should have correct rights set', async () => {
-        const currentRights = await crpPool.getCurrentRights();
-        assert.sameMembers(currentRights, [false, false, false, true]);
+        // const currentRights = await crpPool.getCurrentRights();
+        // assert.sameMembers(currentRights, [false, false, false, true]);
+        const addRemoveRight = await crpPool.hasPermission(3);
+        assert.isTrue(addRemoveRight);
+
+        let x;
+        for (x = 0; x <= 3; x++) {
+            if (x !== 3) {
+                const otherPerm = await crpPool.hasPermission(x);
+                assert.isFalse(otherPerm);
+            }
+        }
     });
 
     it('Controller should not be able to commitAddToken with invalid weight', async () => {

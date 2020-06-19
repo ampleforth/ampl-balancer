@@ -10,6 +10,12 @@ contract('CRPFactory', async (accounts) => {
 
     const MAX = web3.utils.toTwosComplement(-1);
     const SYMBOL = 'BSP';
+    const permissions = {
+        canPauseSwapping: false,
+        canChangeSwapFee: false,
+        canChangeWeights: true,
+        canAddRemoveTokens: true,
+    };
 
     describe('Factory', () => {
         let bfactory;
@@ -53,8 +59,7 @@ contract('CRPFactory', async (accounts) => {
                 startBalances,
                 startWeights,
                 10 ** 15, // swapFee
-                [false, false, true, true],
-                // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+                permissions,
             );
 
             await factory.newCrp(
@@ -64,8 +69,7 @@ contract('CRPFactory', async (accounts) => {
                 startBalances,
                 startWeights,
                 10 ** 15, // swapFee
-                [false, false, true, true],
-                // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+                permissions,
             );
 
             controller = await ConfigurableRightsPool.at(CONTROLLER);

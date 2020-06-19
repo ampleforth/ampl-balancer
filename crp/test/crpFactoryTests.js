@@ -24,6 +24,12 @@ contract('CRPFactory', async (accounts) => {
     const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
     const SYMBOL = 'BSP';
+    const permissions = {
+        canPauseSwapping: false,
+        canChangeSwapFee: false,
+        canChangeWeights: false,
+        canAddRemoveTokens: true,
+    };
 
     before(async () => {
         bFactory = await BFactory.deployed();
@@ -48,8 +54,7 @@ contract('CRPFactory', async (accounts) => {
             startBalances,
             startWeights,
             10 ** 15, // swapFee
-            [false, false, false, true],
-            // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+            permissions,
         );
 
         await crpFactory.newCrp(
@@ -59,8 +64,7 @@ contract('CRPFactory', async (accounts) => {
             startBalances,
             startWeights,
             10 ** 15, // swapFee
-            [false, false, false, true],
-            // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
+            permissions,
         );
 
         crpPool = await ConfigurableRightsPool.at(CRPPOOL);
@@ -97,7 +101,7 @@ contract('CRPFactory', async (accounts) => {
                 startBalances,
                 badStartWeights,
                 10 ** 15,
-                [false, false, false, true],
+                permissions,
             ),
         );
     });
@@ -113,7 +117,7 @@ contract('CRPFactory', async (accounts) => {
                 badStartBalances,
                 startWeights,
                 10 ** 15,
-                [false, false, false, true],
+                permissions,
             ),
         );
     });
@@ -127,7 +131,7 @@ contract('CRPFactory', async (accounts) => {
                 startBalances,
                 startWeights,
                 0,
-                [false, false, false, true],
+                permissions,
             ),
         );
     });
@@ -145,7 +149,7 @@ contract('CRPFactory', async (accounts) => {
                 startBalances,
                 startWeights,
                 invalidSwapFee,
-                [false, false, false, true],
+                permissions,
             ),
         );
     });

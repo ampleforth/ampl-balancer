@@ -25,8 +25,13 @@ contract('pausableSwap', async (accounts) => {
     const startWeights = [toWei(startingXyzWeight), toWei(startingWethWeight), toWei(startingDaiWeight)];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
     const SYMBOL = 'BSP';
-    // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
-    const permissions = [true, false, false, false];
+    // const permissions = [true, false, false, false];
+    const permissions = {
+        canPauseSwapping: true,
+        canChangeSwapFee: false,
+        canChangeWeights: false,
+        canAddRemoveTokens: false,
+    };
 
     before(async () => {
         /*
@@ -86,8 +91,18 @@ contract('pausableSwap', async (accounts) => {
     });
 
     it('crpPool should have correct rights set', async () => {
-        const currentRights = await crpPool.getCurrentRights();
-        assert.sameMembers(currentRights, [true, false, false, false]);
+        // const currentRights = await crpPool.getCurrentRights();
+        // assert.sameMembers(currentRights, [true, false, false, false]);
+        const swapRight = await crpPool.hasPermission(0);
+        assert.isTrue(swapRight);
+
+        let x;
+        for (x = 0; x <= 3; x++) {
+            if (x !== 0) {
+                const otherPerm = await crpPool.hasPermission(x);
+                assert.isFalse(otherPerm);
+            }
+        }
     });
 
     it('ConfigurableRightsPool isPublicSwap should be true after creation', async () => {

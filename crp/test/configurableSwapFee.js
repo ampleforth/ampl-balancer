@@ -25,8 +25,15 @@ contract('configurableSwapFee', async (accounts) => {
     const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
     const SYMBOL = 'BSP';
+
     // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
-    const permissions = [false, true, false, false];
+    // const permissions = [false, true, false, false];
+    const permissions = {
+        canPauseSwapping: false,
+        canChangeSwapFee: true,
+        canChangeWeights: false,
+        canAddRemoveTokens: false,
+    };
 
     before(async () => {
         /*
@@ -89,8 +96,24 @@ contract('configurableSwapFee', async (accounts) => {
     });
 
     it('crpPool should have correct rights set', async () => {
-        const currentRights = await crpPool.getCurrentRights();
-        assert.sameMembers(currentRights, [false, false, true, false]);
+        // const currentRights = await crpPool.getCurrentRights();
+        // assert.sameMembers(currentRights, [false, false, true, false]);
+
+        // enum Permissions { PAUSE_SWAPPING = 0,
+        //                    CHANGE_SWAP_FEE = 1,
+        //                    CHANGE_WEIGHTS = 2,
+        //                    ADD_REMOVE_TOKENS = 3}
+
+        const swapRight = await crpPool.hasPermission(1);
+        assert.isTrue(swapRight);
+
+        let x;
+        for (x = 0; x <= 3; x++) {
+            if (x !== 1) {
+                const otherPerm = await crpPool.hasPermission(x);
+                assert.isFalse(otherPerm);
+            }
+        }
     });
 
     it('Non Controller account should not be able to change swapFee', async () => {

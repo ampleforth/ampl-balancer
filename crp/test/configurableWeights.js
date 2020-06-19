@@ -51,8 +51,12 @@ contract('configurableWeights', async (accounts) => {
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
     const minimumWeightChangeBlockPeriod = 10;
     const SYMBOL = 'BSP';
-    // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
-    const permissions = [false, false, true, false];
+    const permissions = {
+        canPauseSwapping: false,
+        canChangeSwapFee: false,
+        canChangeWeights: true,
+        canAddRemoveTokens: false,
+    };
 
     let validEndBlock; let
         validStartBlock;
@@ -123,8 +127,18 @@ contract('configurableWeights', async (accounts) => {
         });
 
         it('crpPool should have correct rights set', async () => {
-            const currentRights = await crpPool.getCurrentRights();
-            assert.sameMembers(currentRights, [false, false, true, false]);
+            // const currentRights = await crpPool.getCurrentRights();
+            // assert.sameMembers(currentRights, [false, false, true, false]);
+            const reweightRight = await crpPool.hasPermission(2);
+            assert.isTrue(reweightRight);
+
+            let x;
+            for (x = 0; x <= 3; x++) {
+                if (x !== 2) {
+                    const otherPerm = await crpPool.hasPermission(x);
+                    assert.isFalse(otherPerm);
+                }
+            }
         });
 
         it('Non Controller account should not be able to change weights', async () => {

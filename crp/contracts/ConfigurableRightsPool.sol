@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.5.12;
 
+// Needed to handle structures externally
+pragma experimental ABIEncoderV2;
 
 // Imports
 
@@ -132,7 +134,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         uint[] memory startBalances,
         uint[] memory startWeights,
         uint swapFee,
-        bool[4] memory rights
+        RightsManager.Rights memory rights
     )
         public
         PCToken(symbol)
@@ -154,32 +156,16 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _swapFee = swapFee;
         _minimumWeightChangeBlockPeriod = DEFAULT_MIN_WEIGHT_CHANGE_BLOCK_PERIOD;
         _addTokenTimeLockInBlocks = DEFAULT_ADD_TOKEN_TIME_LOCK_IN_BLOCKS;
-        _rights = RightsManager.Rights(rights[0], rights[1], rights[2], rights[3]);
-        // This would allow expansion of rights, but get an "Internal compiler error" trying to use bool[]
-        //_rights = RightsManager.constructRights(rights);
+        _rights = rights;
         _newToken.isCommitted = false;
     }
 
     // External functions
 
     /**
-     * @notice Return bundle of rights
-     * @dev Also exposed through hasPermission (see below)
-     * @return address - owner of the smart pool
-     */
-    function getCurrentRights()
-        external
-        view
-        returns (bool[4] memory rights)
-    {
-        return [_rights.canPauseSwapping,
-                _rights.canChangeSwapFee,
-                _rights.canChangeWeights,
-                _rights.canAddRemoveTokens];
-    }
-
-    /**
      * @notice Getter for specific permissions
+     * @dev value of the enum is just the 0-based index in the enumeration
+     *      For instance canPauseSwapping is 0; canChangeWeights is 2
      * @return token boolean true if we have the given permission
     */
     function hasPermission(RightsManager.Permissions _permission)

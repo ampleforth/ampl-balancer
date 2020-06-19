@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.5.12;
 
+// Needed to handle structures externally
+pragma experimental ABIEncoderV2;
+
 // Imports
 
 import "./ConfigurableRightsPool.sol";
@@ -53,21 +56,16 @@ contract CRPFactory {
      * @param startBalances - initial balances (parallel array)
      * @param startWeights - initial weights (parallal array)
      * @param swapFee - initial swap fee
-     *         minimumWeightChangeBlockPeriod - length in blocks of the "gradualWeightAdjustment" period
-     *         addTokenTimeLockInBlocks - minimum time between automated weight updates
      * @param rights - struct of permissions, configuring this CRP instance (see above for definitions)
      */
     function newCrp(
         address factoryAddress,
         string calldata symbol,
-        //string calldata name,
         address[] calldata tokens,
-        uint256[] calldata startBalances,
-        uint256[] calldata startWeights,
+        uint[] calldata startBalances,
+        uint[] calldata startWeights,
         uint swapFee,
-        //uint minimumWeightChangeBlockPeriod,
-        //uint addTokenTimeLockInBlocks,
-        bool[4] calldata rights
+        RightsManager.Rights calldata rights
     )
         external
         returns (ConfigurableRightsPool)
@@ -75,13 +73,10 @@ contract CRPFactory {
         ConfigurableRightsPool crp = new ConfigurableRightsPool(
             factoryAddress,
             symbol,
-            //name,
             tokens,
             startBalances,
             startWeights,
             swapFee,
-            //minimumWeightChangeBlockPeriod,
-            //addTokenTimeLockInBlocks,
             rights
         );
 
