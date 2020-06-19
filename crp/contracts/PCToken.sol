@@ -66,6 +66,9 @@ contract PCToken is IERC20 {
     uint public constant MIN_POOL_SUPPLY = BONE;
     uint public constant MIN_FEE = BONE / 10**6;
     uint public constant MAX_FEE = BONE / 10;
+    uint public constant EXIT_FEE = 0;
+    uint public constant MAX_IN_RATIO = BONE / 2;
+    uint public constant MAX_OUT_RATIO = (BONE / 3) + 1 wei;
     uint8 public constant MIN_ASSET_LIMIT = 2;
 
     uint internal _totalSupply;

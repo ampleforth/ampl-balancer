@@ -235,7 +235,7 @@ contract('crpPoolTests', async (accounts) => {
         // await crpPool.finalizeSmartPool();
 
         const poolAmountOut = '1';
-        await crpPool.joinPool(toWei(poolAmountOut));
+        await crpPool.joinPool(toWei(poolAmountOut), [MAX, MAX, MAX]);
 
         currentPoolBalance = currentPoolBalance.add(Decimal(poolAmountOut));
 
@@ -260,26 +260,26 @@ contract('crpPoolTests', async (accounts) => {
 
     it('JoinPool should revert if user does not have allowance to join pool', async () => {
         await truffleAssert.reverts(
-            crpPool.joinPool(toWei('1'), { from: user1 }),
+            crpPool.joinPool(toWei('1'), [MAX, MAX, MAX], { from: user1 }),
             'ERR_BTOKEN_BAD_CALLER',
         );
     });
 
     it('Fails calling any swap on unbound token', async () => {
         await truffleAssert.reverts(
-            crpPool.joinswapExternAmountIn(XXX, toWei('2.5')),
+            crpPool.joinswapExternAmountIn(XXX, toWei('2.5'), toWei('0')),
             'ERR_NOT_BOUND',
         );
         await truffleAssert.reverts(
-            crpPool.joinswapPoolAmountOut(XXX, toWei('2.5')),
+            crpPool.joinswapPoolAmountOut(XXX, toWei('2.5'), MAX),
             'ERR_NOT_BOUND',
         );
         await truffleAssert.reverts(
-            crpPool.exitswapPoolAmountIn(XXX, toWei('2.5')),
+            crpPool.exitswapPoolAmountIn(XXX, toWei('2.5'), toWei('0')),
             'ERR_NOT_BOUND',
         );
         await truffleAssert.reverts(
-            crpPool.exitswapExternAmountOut(XXX, toWei('2.5')),
+            crpPool.exitswapExternAmountOut(XXX, toWei('2.5'), MAX),
             'ERR_NOT_BOUND',
         );
     });
@@ -287,8 +287,8 @@ contract('crpPoolTests', async (accounts) => {
     it('tAo = exitswapPoolAmountIn(exitswapExternAmountOut(tAo))', async () => {
         // From Balancer Core
         const tAo = '1';
-        const pAi = await crpPool.exitswapExternAmountOut.call(DAI, toWei(tAo));
-        const calculatedtAo = await crpPool.exitswapPoolAmountIn.call(DAI, String(pAi));
+        const pAi = await crpPool.exitswapExternAmountOut.call(DAI, toWei(tAo), MAX);
+        const calculatedtAo = await crpPool.exitswapPoolAmountIn.call(DAI, String(pAi), toWei('0'));
 
         const expected = Decimal(tAo);
         const actual = fromWei(calculatedtAo);
@@ -308,8 +308,8 @@ contract('crpPoolTests', async (accounts) => {
     it('pAo = joinswapExternAmountIn(joinswapPoolAmountOut(pAo))', async () => {
         // From Balancer Core
         const pAo = 1;
-        const tAi = await crpPool.joinswapPoolAmountOut.call(WETH, toWei(String(pAo)));
-        const calculatedPAo = await crpPool.joinswapExternAmountIn.call(WETH, String(tAi));
+        const tAi = await crpPool.joinswapPoolAmountOut.call(WETH, toWei(String(pAo)), MAX);
+        const calculatedPAo = await crpPool.joinswapExternAmountIn.call(WETH, String(tAi), toWei('0'));
 
         const expected = Decimal(pAo);
         const actual = fromWei(calculatedPAo);
@@ -341,7 +341,7 @@ contract('crpPoolTests', async (accounts) => {
         previousbPoolDaiBalance = Decimal(fromWei(previousbPoolDaiBalance));
         const previousPoolBalance = Decimal(currentPoolBalance);
 
-        await crpPool.exitPool(toWei(poolAmountIn));
+        await crpPool.exitPool(toWei(poolAmountIn), [toWei('0'), toWei('0'), toWei('0')]);
 
         currentPoolBalance = currentPoolBalance.sub(Decimal(poolAmountIn));
 

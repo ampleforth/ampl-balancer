@@ -142,6 +142,8 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         require(startBalances.length == tokens.length, "ERR_START_BALANCES_MISMATCH");
         require(startWeights.length == tokens.length, "ERR_START_WEIGHTS_MISMATCH");
 
+        // We don't have a pool yet; check now or it will fail later
+        // (and be unrecoverable if they don't have permission set to change it)
         require(swapFee >= MIN_FEE, "ERR_INVALID_SWAP_FEE");
         require(swapFee <= MAX_FEE, "ERR_INVALID_SWAP_FEE");
 
@@ -179,14 +181,14 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
     /**
      * @notice Getter for specific permissions
      * @return token boolean true if we have the given permission
-
+    */
     function hasPermission(RightsManager.Permissions _permission)
         external
         view
         returns(bool)
     {
         return RightsManager.hasPermission(_rights, _permission);
-    }*/
+    }
 
     /**
      * @notice Get the denormalized weight of a token
@@ -206,6 +208,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
 
     /**
      * @notice Set the swap fee on the underlying pool
+     * @dev Keep the local version and core in sync (see below)
      * @param swapFee in Wei
      */
     function setSwapFee(uint swapFee)
@@ -216,6 +219,18 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _needsBPool_
     {
         require(_rights.canChangeSwapFee, "ERR_NOT_CONFIGURABLE_SWAP_FEE");
+
+        // Also need to set the local variable, because it is accessed directly
+        // in the wrapped pool functions, and so could get out of sync with core
+        //
+        // Probably best practice to read from the core pool instead of using this
+        // again, but setting it is defensive programming
+        // The alternative is to not have this "pending swap fee" at all, but set it
+        // to the default on creation, and they can only change it with permission
+        //
+        // (That would lose the functionality of setting a fixed fee different from the
+        // default, though.)
+        _swapFee = swapFee;
 
         bPool.setSwapFee(swapFee);
     }
@@ -695,51 +710,98 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _burnPoolShare(poolShares);
     }
 
-    function joinPool(uint poolAmountOut)
+    /**
+     * @notice Join a pool
+     * @dev Emits a LogJoin event (for each token)
+     * @param poolAmountOut - number of pool tokens to receive
+     * @param maxAmountsIn - Max amount of asset tokens to spend
+     */
+    function joinPool(uint poolAmountOut, uint[] calldata maxAmountsIn)
          external
         _logs_
         _lock_
         _needsBPool_
     {
-        uint poolTotal = totalSupply();
+        require(maxAmountsIn.length == _tokens.length, "ERR_AMOUNTS_MISMATCH");
 
+        uint poolTotal = totalSupply();
         uint ratio = BalancerSafeMath.bdiv(poolAmountOut, poolTotal);
-        require(ratio != 0);
+
+        require(ratio != 0, "ERR_MATH_APPROX");
 
         for (uint i = 0; i < _tokens.length; i++) {
             address t = _tokens[i];
             uint bal = bPool.getBalance(t);
             uint tokenAmountIn = BalancerSafeMath.bmul(ratio, bal);
+
+            require(tokenAmountIn != 0, "ERR_MATH_APPROX");
+            require(tokenAmountIn <= maxAmountsIn[i], "ERR_LIMIT_IN");
+
             emit LOG_JOIN(msg.sender, t, tokenAmountIn);
+
             _pullUnderlying(t, msg.sender, tokenAmountIn);
         }
+
         _mintPoolShare(poolAmountOut);
         _pushPoolShare(msg.sender, poolAmountOut);
     }
 
-    function exitPool(uint poolAmountIn)
+    /**
+     * @notice Exit a pool - redeem pool tokens for underlying assets
+     * @dev Emits a LogExit event for each token
+     * @param poolAmountIn - amount of pool tokens to redeem
+     * @param minAmountsOut - minimum amount of asset tokens to receive
+     */
+    function exitPool(uint poolAmountIn, uint[] calldata minAmountsOut)
         external
         _logs_
         _lock_
         _needsBPool_
     {
+        require(minAmountsOut.length == _tokens.length, "ERR_AMOUNTS_MISMATCH");
+
         uint poolTotal = totalSupply();
-        uint ratio = BalancerSafeMath.bdiv(poolAmountIn, poolTotal);
-        require(ratio != 0);
+
+        // Calculate exit fee and the final amount in
+        uint exitFee = BalancerSafeMath.bmul(poolAmountIn, EXIT_FEE);
+        uint pAiAfterExitFee = BalancerSafeMath.bsub(poolAmountIn, exitFee);
+
+        uint ratio = BalancerSafeMath.bdiv(pAiAfterExitFee, poolTotal);
+
+        require(ratio != 0, "ERR_MATH_APPROX");
 
         _pullPoolShare(msg.sender, poolAmountIn);
-        _burnPoolShare(poolAmountIn);
+        _pushPoolShare(address(bFactory), exitFee);
+        _burnPoolShare(pAiAfterExitFee);
 
         for (uint i = 0; i < _tokens.length; i++) {
             address t = _tokens[i];
             uint bal = bPool.getBalance(t);
-            uint tAo = BalancerSafeMath.bmul(ratio, bal);
-            emit LOG_EXIT(msg.sender, t, tAo);
-            _pushUnderlying(t, msg.sender, tAo);
+            uint tokenAmountOut = BalancerSafeMath.bmul(ratio, bal);
+
+            require(tokenAmountOut != 0, "ERR_MATH_APPROX");
+            require(tokenAmountOut >= minAmountsOut[i], "ERR_LIMIT_OUT");
+
+            emit LOG_EXIT(msg.sender, t, tokenAmountOut);
+
+            _pushUnderlying(t, msg.sender, tokenAmountOut);
         }
     }
 
-    function joinswapExternAmountIn(address tokenIn, uint tokenAmountIn)
+    /**
+     * @notice Join by swapping a fixed amount of an external token in (must be present in the pool)
+     *         System calculates the pool token amount
+     * @dev emits a LogJoin event
+     * @param tokenIn - which token we're transferring in
+     * @param tokenAmountIn - amount of deposit
+     * @param minPoolAmountOut - minimum of pool tokens to receive
+     * @return poolAmountOut - amount of pool tokens minted and transferred
+     */
+    function joinswapExternAmountIn(
+        address tokenIn,
+        uint tokenAmountIn,
+        uint minPoolAmountOut
+    )
         external
         _logs_
         _lock_
@@ -747,6 +809,8 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         returns (uint poolAmountOut)
     {
         require(bPool.isBound(tokenIn), "ERR_NOT_BOUND");
+        require(tokenAmountIn <= BalancerSafeMath.bmul(bPool.getBalance(tokenIn), MAX_IN_RATIO),
+                                                       "ERR_MAX_IN_RATIO");
 
         poolAmountOut = bPool.calcPoolOutGivenSingleIn(
                             bPool.getBalance(tokenIn),
@@ -757,6 +821,8 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
                             _swapFee
                         );
 
+        require(poolAmountOut >= minPoolAmountOut, "ERR_LIMIT_OUT");
+
         emit LOG_JOIN(msg.sender, tokenIn, tokenAmountIn);
 
         _mintPoolShare(poolAmountOut);
@@ -766,7 +832,20 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         return poolAmountOut;
     }
 
-    function joinswapPoolAmountOut(address tokenIn, uint poolAmountOut)
+    /**
+     * @notice Join by swapping an external token in (must be present in the pool)
+     *         To receive an exact amount of pool tokens out. System calculates the deposit amount
+     * @dev emits a LogJoin event
+     * @param tokenIn - which token we're transferring in (system calculates amount required)
+     * @param poolAmountOut - amount of pool tokens to be received
+     * @param maxAmountIn - Maximum asset tokens that can be pulled to pay for the pool tokens
+     * @return tokenAmountIn - amount of asset tokens transferred in to purchase the pool tokens
+     */
+    function joinswapPoolAmountOut(
+        address tokenIn,
+        uint poolAmountOut,
+        uint maxAmountIn
+    )
         external
         _logs_
         _lock_
@@ -784,6 +863,12 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
                             _swapFee
                         );
 
+        require(tokenAmountIn != 0, "ERR_MATH_APPROX");
+        require(tokenAmountIn <= maxAmountIn, "ERR_LIMIT_IN");
+
+        require(tokenAmountIn <= BalancerSafeMath.bmul(bPool.getBalance(tokenIn), MAX_IN_RATIO),
+                                                       "ERR_MAX_IN_RATIO");
+
         emit LOG_JOIN(msg.sender, tokenIn, tokenAmountIn);
 
         _mintPoolShare(poolAmountOut);
@@ -793,7 +878,20 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         return tokenAmountIn;
     }
 
-    function exitswapPoolAmountIn(address tokenOut, uint poolAmountIn)
+    /**
+     * @notice Exit a pool - redeem a specific number of pool tokens for an underlying asset
+     *         Asset must be present in the pool, and will incur an EXIT_FEE (if set to non-zero)
+     * @dev Emits a LogExit event for the token
+     * @param tokenOut - which token the caller wants to receive
+     * @param poolAmountIn - amount of pool tokens to redeem
+     * @param minAmountOut - minimum asset tokens to receive
+     * @return tokenAmountOut - amount of asset tokens returned
+     */
+    function exitswapPoolAmountIn(
+        address tokenOut,
+        uint poolAmountIn,
+        uint minAmountOut
+    )
         external
         _logs_
         _lock_
@@ -811,16 +909,36 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
                             _swapFee
                         );
 
+        require(tokenAmountOut >= minAmountOut, "ERR_LIMIT_OUT");
+        require(tokenAmountOut <= BalancerSafeMath.bmul(bPool.getBalance(tokenOut), MAX_OUT_RATIO),
+                                                        "ERR_MAX_OUT_RATIO");
+
+        uint exitFee = BalancerSafeMath.bmul(poolAmountIn, EXIT_FEE);
+
         emit LOG_EXIT(msg.sender, tokenOut, tokenAmountOut);
 
         _pullPoolShare(msg.sender, poolAmountIn);
-        _burnPoolShare(poolAmountIn);
-        _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);        // This will do an EXIT_FEE because of BP rebind
+        _burnPoolShare(BalancerSafeMath.bsub(poolAmountIn, exitFee));
+        _pushPoolShare(address(bFactory), exitFee);
+        _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
 
         return tokenAmountOut;
     }
 
-    function exitswapExternAmountOut(address tokenOut, uint tokenAmountOut)
+    /**
+     * @notice Exit a pool - redeem pool tokens for a specific amount of underlying assets
+     *         Asset must be present in the pool
+     * @dev Emits a LogExit event for the token
+     * @param tokenOut - which token the caller wants to receive
+     * @param tokenAmountOut - amount of underlying asset tokens to receive
+     * @param maxPoolAmountIn - maximum pool tokens to be redeemed
+     * @return poolAmountIn - amount of pool tokens redeemed
+     */
+    function exitswapExternAmountOut(
+        address tokenOut,
+        uint tokenAmountOut,
+        uint maxPoolAmountIn
+    )
         external
         _logs_
         _lock_
@@ -828,7 +946,8 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         returns (uint poolAmountIn)
     {
         require(bPool.isBound(tokenOut), "ERR_NOT_BOUND");
-
+        require(tokenAmountOut <= BalancerSafeMath.bmul(bPool.getBalance(tokenOut), MAX_OUT_RATIO),
+                                                        "ERR_MAX_OUT_RATIO");
         poolAmountIn = bPool.calcPoolInGivenSingleOut(
                             bPool.getBalance(tokenOut),
                             bPool.getDenormalizedWeight(tokenOut),
@@ -838,10 +957,16 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
                             _swapFee
                         );
 
+        require(poolAmountIn != 0, "ERR_MATH_APPROX");
+        require(poolAmountIn <= maxPoolAmountIn, "ERR_LIMIT_IN");
+
+        uint exitFee = BalancerSafeMath.bmul(poolAmountIn, EXIT_FEE);
+
         emit LOG_EXIT(msg.sender, tokenOut, tokenAmountOut);
 
         _pullPoolShare(msg.sender, poolAmountIn);
-        _burnPoolShare(poolAmountIn);
+        _burnPoolShare(BalancerSafeMath.bsub(poolAmountIn, exitFee));
+        _pushPoolShare(address(bFactory), exitFee);
         _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
 
         return poolAmountIn;
