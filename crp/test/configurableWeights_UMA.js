@@ -6,9 +6,7 @@ const truffleAssert = require('truffle-assertions');
 
 contract('CRPFactory', async (accounts) => {
     const admin = accounts[0];
-    // const nonAdmin = accounts[1];
     const { toWei } = web3.utils;
-    // const { fromWei } = web3.utils;
 
     const MAX = web3.utils.toTwosComplement(-1);
     const SYMBOL = 'BSP';
@@ -55,7 +53,7 @@ contract('CRPFactory', async (accounts) => {
                 startBalances,
                 startWeights,
                 10 ** 15, // swapFee
-                [false, false, true, false],
+                [false, false, true, true],
                 // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
             );
 
@@ -66,7 +64,7 @@ contract('CRPFactory', async (accounts) => {
                 startBalances,
                 startWeights,
                 10 ** 15, // swapFee
-                [false, false, true, false],
+                [false, false, true, true],
                 // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
             );
 
