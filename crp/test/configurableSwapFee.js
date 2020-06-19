@@ -26,7 +26,6 @@ contract('configurableSwapFee', async (accounts) => {
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
     const SYMBOL = 'BSP';
 
-    // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
     // const permissions = [false, true, false, false];
     const permissions = {
         canPauseSwapping: false,
