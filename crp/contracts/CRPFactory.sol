@@ -1,42 +1,72 @@
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is disstributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.5.12;
+
+// Imports
 
 import "./ConfigurableRightsPool.sol";
 
+// Contracts
+
+/**
+ * @author Balancer Labs
+ * @title Configurable Rights Pool Factory - create parameterized smart pools
+ * @dev Rights are held in a corresponding struct in ConfigurableRightsPool
+ *      Index values are as follows:
+ *      0: canPauseSwapping - can setPublicSwap back to false after turning it on
+ *                            by default, it is off on initialization and can only be turned on
+ *      1: canChangeSwapFee - can setSwapFee after initialization (by default, it is fixed at create time)
+ *      2: canChangeWeights - can bind new token weights (allowed by default in base pool)
+ *      3: canAddRemoveTokens - can bind/unbind tokens (allowed by default in base pool)
+ *      4: canWhitelistLPs - if set, only whitelisted addresses can join pools
+ *                           (enables private pools with more than one LP)
+ */
 contract CRPFactory {
+    // State variables
+
+    // Keep a list of all Configurable Rights Pools
+    mapping(address=>bool) private _isCrp;
+
+    // Event declarations
+
+    // Log the address of each new smart pool, and its creator
     event LOG_NEW_CRP(
         address indexed caller,
         address indexed pool
     );
 
-    mapping(address=>bool) private _isCrp;
+    // Function declarations
 
-    function isCrp(address b)
-        external view returns (bool)
-    {
-        return _isCrp[b];
+    /**
+     * @notice Check to see if a given address is a CRP
+     * @param addr - address to check
+     * @return boolean indicating whether it is a CRP
+     */
+    function isCrp(address addr) external view returns (bool) {
+        return _isCrp[addr];
     }
 
+    /**
+     * @notice Create a new CRP
+     * @dev emits a LogNewCRP event
+     * @param factoryAddress - the BFactory instance used to create the underlying pool
+     * @param tokens - initial set of tokens
+     * @param startBalances - initial balances (parallel array)
+     * @param startWeights - initial weights (parallal array)
+     * @param swapFee - initial swap fee
+     *         minimumWeightChangeBlockPeriod - length in blocks of the "gradualWeightAdjustment" period
+     *         addTokenTimeLockInBlocks - minimum time between automated weight updates
+     * @param rights - struct of permissions, configuring this CRP instance (see above for definitions)
+     */
     function newCrp(
         address factoryAddress,
+        string calldata symbol,
+        //string calldata name,
         address[] calldata tokens,
         uint256[] calldata startBalances,
         uint256[] calldata startWeights,
         uint swapFee,
-        uint minimumWeightChangeBlockPeriod,
-        uint addTokenTimeLockInBlocks,
+        //uint minimumWeightChangeBlockPeriod,
+        //uint addTokenTimeLockInBlocks,
         bool[4] calldata rights
     )
         external
@@ -44,18 +74,22 @@ contract CRPFactory {
     {
         ConfigurableRightsPool crp = new ConfigurableRightsPool(
             factoryAddress,
+            symbol,
+            //name,
             tokens,
             startBalances,
             startWeights,
             swapFee,
-            minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBlocks,
+            //minimumWeightChangeBlockPeriod,
+            //addTokenTimeLockInBlocks,
             rights
         );
+
         _isCrp[address(crp)] = true;
-        emit LOG_NEW_CRP(msg.sender, address(crp));
         crp.setController(msg.sender);
+
+        emit LOG_NEW_CRP(msg.sender, address(crp));
+
         return crp;
     }
-
 }

@@ -1,5 +1,6 @@
 const BFactory = artifacts.require('BFactory');
 const ConfigurableRightsPool = artifacts.require('ConfigurableRightsPool');
+const truffleAssert = require('truffle-assertions');
 const CRPFactory = artifacts.require('CRPFactory');
 const TToken = artifacts.require('TToken');
 
@@ -22,7 +23,7 @@ contract('CRPFactory', async (accounts) => {
     let xyz;
     const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
-    const addTokenTimeLockInBlocks = 10;
+    const SYMBOL = 'BSP';
 
     before(async () => {
         bFactory = await BFactory.deployed();
@@ -42,24 +43,22 @@ contract('CRPFactory', async (accounts) => {
 
         CRPPOOL = await crpFactory.newCrp.call(
             bFactory.address,
+            SYMBOL,
             [XYZ, WETH, DAI],
             startBalances,
             startWeights,
             10 ** 15, // swapFee
-            10, // minimumWeightChangeBlockPeriod
-            addTokenTimeLockInBlocks, // addTokenTimeLockInBlocks
             [false, false, false, true],
             // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );
 
         await crpFactory.newCrp(
             bFactory.address,
+            SYMBOL,
             [XYZ, WETH, DAI],
             startBalances,
             startWeights,
             10 ** 15, // swapFee
-            10, // minimumWeightChangeBlockPeriod
-            addTokenTimeLockInBlocks, // addTokenTimeLockInBlocks
             [false, false, false, true],
             // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );
@@ -85,6 +84,70 @@ contract('CRPFactory', async (accounts) => {
     it('CRPFactory should not have random address registered', async () => {
         const isPoolRegistered = await crpFactory.isCrp(WETH);
         assert.equal(isPoolRegistered, false, 'Expected not to be registered.');
+    });
+
+    it('should not be able to create with mismatched start Weights', async () => {
+        const badStartWeights = [toWei('12'), toWei('1.5')];
+
+        await truffleAssert.reverts(
+            crpFactory.newCrp(
+                bFactory.address,
+                SYMBOL,
+                [XYZ, WETH, DAI],
+                startBalances,
+                badStartWeights,
+                10 ** 15,
+                [false, false, false, true],
+            ),
+        );
+    });
+
+    it('should not be able to create with mismatched start Weights', async () => {
+        const badStartBalances = [toWei('80000'), toWei('40'), toWei('10000'), toWei('5000')];
+
+        await truffleAssert.reverts(
+            crpFactory.newCrp(
+                bFactory.address,
+                SYMBOL,
+                [XYZ, WETH, DAI],
+                badStartBalances,
+                startWeights,
+                10 ** 15,
+                [false, false, false, true],
+            ),
+        );
+    });
+
+    it('should not be able to create with zero fee', async () => {
+        await truffleAssert.reverts(
+            crpFactory.newCrp(
+                bFactory.address,
+                SYMBOL,
+                [XYZ, WETH, DAI],
+                startBalances,
+                startWeights,
+                0,
+                [false, false, false, true],
+            ),
+        );
+    });
+
+    it('should not be able to create with a fee above the MAX', async () => {
+        // Max is 10**18 / 10
+        // Have to pass it as a string for some reason...
+        const invalidSwapFee = '200000000000000000';
+
+        await truffleAssert.reverts(
+            crpFactory.newCrp(
+                bFactory.address,
+                SYMBOL,
+                [XYZ, WETH, DAI],
+                startBalances,
+                startWeights,
+                invalidSwapFee,
+                [false, false, false, true],
+            ),
+        );
     });
 
     // ?????? Check for controller?

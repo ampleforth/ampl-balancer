@@ -24,8 +24,7 @@ contract('configurableSwapFee', async (accounts) => {
     const swapFee = 10 ** 15;
     const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
-    const addTokenTimeLockInBlocks = 10;
-    const minimumWeightChangeBlockPeriod = 10;
+    const SYMBOL = 'BSP';
     // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
     const permissions = [false, true, false, false];
 
@@ -60,23 +59,21 @@ contract('configurableSwapFee', async (accounts) => {
 
         CRPPOOL = await crpFactory.newCrp.call(
             bFactory.address,
+            SYMBOL,
             tokenAddresses,
             startBalances,
             startWeights,
             swapFee,
-            minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBlocks,
             permissions,
         );
 
         await crpFactory.newCrp(
             bFactory.address,
+            SYMBOL,
             tokenAddresses,
             startBalances,
             startWeights,
             swapFee,
-            minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBlocks,
             permissions,
         );
 
@@ -113,8 +110,17 @@ contract('configurableSwapFee', async (accounts) => {
         const newSwapFee = toWei('0.001');
         await crpPool.setSwapFee(newSwapFee);
 
+        // Setting it to the same as the old value, so if it fails silently we wouldn't know
+        // To guard against that, set it to something actually different in the next test, to
+        // make sure it really changes it
         const newSwapFeeCheck = await bPool.getSwapFee();
         assert.equal(newSwapFee, newSwapFeeCheck);
+
+        const differentSwapFee = toWei('0.003');
+        await crpPool.setSwapFee(differentSwapFee);
+
+        const secondSwapFeeCheck = await bPool.getSwapFee();
+        assert.equal(differentSwapFee, secondSwapFeeCheck);
     });
 
     it('Configurable tokens should revert because non-permissioned', async () => {

@@ -1,8 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.5.12;
 
 contract Migrations {
   address public owner;
-  uint public last_completed_migration;
+  uint public lastCompletedMigration;
 
   constructor() public {
     owner = msg.sender;
@@ -13,6 +14,6 @@ contract Migrations {
   }
 
   function setCompleted(uint completed) public restricted {
-    last_completed_migration = completed;
+    lastCompletedMigration = completed;
   }
 }

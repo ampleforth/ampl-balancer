@@ -34,7 +34,7 @@ contract('configurableAddRemoveTokens', async (accounts) => {
     const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
     const addTokenTimeLockInBlocks = 10;
-    const minimumWeightChangeBlockPeriod = 10;
+    const SYMBOL = 'BSP';
     // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
     const permissions = [false, false, false, true];
 
@@ -72,23 +72,21 @@ contract('configurableAddRemoveTokens', async (accounts) => {
 
         CRPPOOL = await crpFactory.newCrp.call(
             bFactory.address,
+            SYMBOL,
             tokenAddresses,
             startBalances,
             startWeights,
             swapFee,
-            minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBlocks,
             permissions,
         );
 
         await crpFactory.newCrp(
             bFactory.address,
+            SYMBOL,
             tokenAddresses,
             startBalances,
             startWeights,
             swapFee,
-            minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBlocks,
             permissions,
         );
 

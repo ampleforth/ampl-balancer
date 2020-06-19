@@ -25,8 +25,7 @@ contract('crpPoolTests', async (accounts) => {
     const swapFee = toWei('0.003');
     const startWeights = [toWei('12'), toWei('1.5'), toWei('1.5')];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
-    const addTokenTimeLockInBlocks = 10;
-    const minimumWeightChangeBlockPeriod = 10;
+    const SYMBOL = 'BSP';
 
     let crpFactory; let bFactory; let bPool; let
         crpPool;
@@ -68,24 +67,26 @@ contract('crpPoolTests', async (accounts) => {
 
         CRPPOOL = await crpFactory.newCrp.call(
             bFactory.address,
+            SYMBOL,
             [XYZ, WETH, DAI],
             startBalances,
             startWeights,
             swapFee,
-            minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBlocks,
+            //minimumWeightChangeBlockPeriod,
+            //addTokenTimeLockInBlocks,
             [true, true, true, true],
             // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );
 
         await crpFactory.newCrp(
             bFactory.address,
+            SYMBOL,
             [XYZ, WETH, DAI],
             startBalances,
             startWeights,
             swapFee,
-            minimumWeightChangeBlockPeriod,
-            addTokenTimeLockInBlocks,
+            //minimumWeightChangeBlockPeriod,
+            //addTokenTimeLockInBlocks,
             [true, true, true, true],
             // pausableSwap, configurableSwapFee, configurableWeights, configurableAddRemoveTokens
         );
@@ -188,12 +189,14 @@ contract('crpPoolTests', async (accounts) => {
         assert.equal(adminBPTBalance, toWei('100'));
     });
 
+    /* Pools are now "finalized" at the CRP level on create; don't need to call anything
     it('JoinPool should revert if smart pool is not finalized yet', async () => {
         await truffleAssert.reverts(
             crpPool.joinPool(toWei('1000')),
             'ERR_SMART_POOL_NOT_FINALIZED',
         );
     });
+
 
     it('Fails calling any join exit swap before finalizing', async () => {
         await truffleAssert.reverts(
@@ -213,6 +216,7 @@ contract('crpPoolTests', async (accounts) => {
             'ERR_SMART_POOL_NOT_FINALIZED',
         );
     });
+    */
 
     it('JoinPool should not revert if smart pool is finalized', async () => {
         const bPoolAddr = await crpPool.bPool();
@@ -226,7 +230,9 @@ contract('crpPoolTests', async (accounts) => {
         previousbPoolWethBalance = Decimal(fromWei(previousbPoolWethBalance));
         previousbPoolDaiBalance = Decimal(fromWei(previousbPoolDaiBalance));
 
-        await crpPool.finalizeSmartPool();
+        // Removed this function - smart pools are "finalized" at the CRP level on create
+        // They are never finalized at the core level, or we wouldn't be able to do anything
+        // await crpPool.finalizeSmartPool();
 
         const poolAmountOut = '1';
         await crpPool.joinPool(toWei(poolAmountOut));
@@ -366,7 +372,7 @@ contract('crpPoolTests', async (accounts) => {
             const name = await crpPool.NAME();
             assert.equal(name, 'Balancer Smart Pool');
 
-            const symbol = await crpPool.SYMBOL();
+            const symbol = await crpPool.tokenSymbol();
             assert.equal(symbol, 'BSP');
 
             const decimals = await crpPool.DECIMALS();
