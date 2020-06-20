@@ -72,6 +72,8 @@ contract PCToken is IERC20 {
     uint public constant MAX_IN_RATIO = BONE / 2;
     uint public constant MAX_OUT_RATIO = (BONE / 3) + 1 wei;
     uint8 public constant MIN_ASSET_LIMIT = 2;
+    uint public constant MIN_WEIGHT_CHANGE_BLOCK_PERIOD = 10;
+    uint public constant MIN_TOKEN_TIME_LOCK_PERIOD = 10;
 
     uint internal _totalSupply;
 

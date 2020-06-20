@@ -140,7 +140,7 @@ library SmartPoolManager {
      * @param newWeights - final weights we want to get to
      * @param startBlock - when weights should start to change
      * @param endBlock - when weights will be at their final values
-     * @param minimumWeightChangeBlockPeriod - can override default value
+     * @param minimumWeightChangeBlockPeriod - needed to validate the block period
     */
     function updateWeightsGradually(
         IBPool bPool,

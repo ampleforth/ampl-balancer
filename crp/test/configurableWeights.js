@@ -446,7 +446,7 @@ contract('configurableWeights', async (accounts) => {
             const endWeights = [toWei('3'), toWei('6'), toWei('6')];
 
             await truffleAssert.reverts(
-                crpPool.updateWeightsGradually(endWeights, startBlock, endBlock, 10, 10, { from: accounts[1] }),
+                crpPool.updateWeightsGradually(endWeights, startBlock, endBlock, { from: accounts[1] }),
                 'ERR_NOT_CONTROLLER',
             );
         });
@@ -458,7 +458,7 @@ contract('configurableWeights', async (accounts) => {
             const endBlock = startBlock + blockRange;
 
             await truffleAssert.reverts(
-                crpPool.updateWeightsGradually([toWei('3'), toWei('6'), toWei('6')], startBlock, endBlock, 10, 10),
+                crpPool.updateWeightsGradually([toWei('3'), toWei('6'), toWei('6')], startBlock, endBlock),
                 'ERR_WEIGHT_CHANGE_TIME_BELOW_MIN',
             );
         });
@@ -470,17 +470,17 @@ contract('configurableWeights', async (accounts) => {
             const endBlock = startBlock + blockRange;
 
             await truffleAssert.reverts(
-                crpPool.updateWeightsGradually([toWei('51'), toWei('6'), toWei('6')], startBlock, endBlock, 10, 10),
+                crpPool.updateWeightsGradually([toWei('51'), toWei('6'), toWei('6')], startBlock, endBlock),
                 'ERR_WEIGHT_ABOVE_MAX',
             );
 
             await truffleAssert.reverts(
-                crpPool.updateWeightsGradually([toWei('0.999'), toWei('6'), toWei('6')], startBlock, endBlock, 10, 10),
+                crpPool.updateWeightsGradually([toWei('0.999'), toWei('6'), toWei('6')], startBlock, endBlock),
                 'ERR_WEIGHT_BELOW_MIN',
             );
 
             await truffleAssert.reverts(
-                crpPool.updateWeightsGradually([toWei('20'), toWei('20'), toWei('11')], startBlock, endBlock, 10, 10),
+                crpPool.updateWeightsGradually([toWei('20'), toWei('20'), toWei('11')], startBlock, endBlock),
                 'ERR_MAX_TOTAL_WEIGHT',
             );
         });
@@ -494,7 +494,7 @@ contract('configurableWeights', async (accounts) => {
             console.log(`Gradual Update: ${startingXyzWeight}->${endXyzWeight}, ${startingWethWeight}->${endWethWeight}, ${startingDaiWeight}->${endDaiWeight}`);
             console.log(`Latest Block: ${block.number}, Start Update: ${startBlock} End Update: ${endBlock}`);
             const endWeights = [toWei(endXyzWeight), toWei(endWethWeight), toWei(endDaiWeight)];
-            await crpPool.updateWeightsGradually(endWeights, startBlock, endBlock, 10, 10);
+            await crpPool.updateWeightsGradually(endWeights, startBlock, endBlock);
         });
 
         it('Should not be able to pokeWeights until valid start block reached', async () => {
@@ -586,7 +586,7 @@ contract('configurableWeights', async (accounts) => {
             console.log(`Latest Block: ${block.number}, Start Update: ${startBlock} End Update: ${endBlock}`);
 
             const endWeights = [toWei(endXyzWeight), toWei(endWethWeight), toWei(endDaiWeight)];
-            await crpPool.updateWeightsGradually(endWeights, startBlock, endBlock, 10, 10);
+            await crpPool.updateWeightsGradually(endWeights, startBlock, endBlock);
 
             let xyzWeight = await crpPool.getDenormalizedWeight(XYZ);
             let wethWeight = await crpPool.getDenormalizedWeight(WETH);
@@ -652,7 +652,7 @@ contract('configurableWeights', async (accounts) => {
             console.log(`Gradual Update: ${startingXyzWeight}->${endXyzWeight}, ${startingWethWeight}->${endWethWeight}, ${startingDaiWeight}->${endDaiWeight}`);
             console.log(`Latest Block: ${block.number}, Start Update: ${startBlock} End Update: ${endBlock}`);
             const endWeights = [toWei(endXyzWeight), toWei(endWethWeight), toWei(endDaiWeight)];
-            await crpPool.updateWeightsGradually(endWeights, startBlock, endBlock, 10, 10);
+            await crpPool.updateWeightsGradually(endWeights, startBlock, endBlock);
 
             // Move blocks on passed starting block
             let advanceBlocks = 7;
@@ -719,7 +719,7 @@ contract('configurableWeights', async (accounts) => {
             console.log(`Gradual Update: ${startingXyzWeight}->${endXyzWeight}, ${startingWethWeight}->${endWethWeight}, ${startingDaiWeight}->${endDaiWeight}`);
             console.log(`Latest Block: ${block.number}, Start Update: ${startBlock} End Update: ${endBlock}`);
             const endWeights = [toWei(endXyzWeight), toWei(endWethWeight), toWei(endDaiWeight)];
-            await crpPool.updateWeightsGradually(endWeights, startBlock, endBlock, 10, 10);
+            await crpPool.updateWeightsGradually(endWeights, startBlock, endBlock);
 
             // Move blocks on passed starting block
             let advanceBlocks = (minimumWeightChangeBlockPeriod * 2);

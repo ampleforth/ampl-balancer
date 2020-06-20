@@ -252,10 +252,78 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
     }
 
     /**
+     * @notice Create a new Smart Pool - and set the block period time parameters
+     * @dev Initialize the swap fee to the value provided in the CRP constructor
+     *      Can be changed if the canChangeSwapFee permission is enabled
+     *      Time parameters will be fixed at these values
+     *      NB:
+     *      Code is duplicated in the overloaded createPool! If you change one, change the other!
+     *      Unfortunately I cannot call this.createPool(initialSupply) from the overloaded one,
+     *      because msg.sender will be different (contract address vs external account), and the
+     *      token transfers would fail. Overloading is tricky with external functions.
+     * @param initialSupply starting token balance
+     * @param minimumWeightChangeBlockPeriod - Enforce a minimum time between the start and end blocks
+     * @param addTokenTimeLockInBlocks - Enforce a mandatory wait time between updates
+     *                                   This is also the wait time between committing and applying a new token
+     * @return ConfigurableRightsPool instance
+     */
+    function createPool(
+        uint initialSupply,
+        uint minimumWeightChangeBlockPeriod,
+        uint addTokenTimeLockInBlocks
+    )
+        external
+        returns (ConfigurableRightsPool)
+    {
+        require(minimumWeightChangeBlockPeriod >= MIN_WEIGHT_CHANGE_BLOCK_PERIOD, "ERR_INVALID_BLOCK_PERIOD");
+        require(addTokenTimeLockInBlocks <= minimumWeightChangeBlockPeriod, "ERR_INCONSISTENT_TOKEN_TIME_LOCK");
+        require(addTokenTimeLockInBlocks >= MIN_TOKEN_TIME_LOCK_PERIOD, "ERR_INVALID_TOKEN_TIME_LOCK");
+
+        _minimumWeightChangeBlockPeriod = minimumWeightChangeBlockPeriod;
+        _addTokenTimeLockInBlocks = addTokenTimeLockInBlocks;
+
+        require(address(bPool) == address(0), "ERR_IS_CREATED");
+        require(block.number >= _startBlock, "ERR_START_BLOCK");
+        require(initialSupply > 0, "ERR_INIT_SUPPLY");
+
+        // Deploy new BPool
+        bPool = bFactory.newBPool();
+
+        // Set fee to the initial value set in the constructor
+        bPool.setSwapFee(_swapFee);
+
+        for (uint i = 0; i < _tokens.length; i++) {
+            address t = _tokens[i];
+            uint bal = _startBalances[i];
+            uint denorm = _startWeights[i];
+
+            bool xfer = IERC20(t).transferFrom(msg.sender, address(this), bal);
+            require(xfer, "ERR_ERC20_FALSE");
+
+            IERC20(t).approve(address(bPool), uint(-1));
+            // Note that this will actually duplicate the array of tokens
+            //   This contract has _tokens, and so does the underlying pool
+            // Binding pushes a token to the end of the underlying pool's array
+            bPool.bind(t, bal, denorm);
+        }
+
+        bPool.setPublicSwap(true);
+
+        _mintPoolShare(initialSupply);
+        _pushPoolShare(msg.sender, initialSupply);
+    }
+
+    /**
      * @notice Create a new Smart Pool
      * @dev Initialize the swap fee to the value provided in the CRP constructor
      *      Can be changed if the canChangeSwapFee permission is enabled
+     *      NB:
+     *      Code is duplicated in the overloaded createPool! If you change one, change the other!
+     *      Unfortunately I cannot call this.createPool(initialSupply) from the overloaded one,
+     *      because msg.sender will be different (contract address vs external account), and the
+     *      token transfers would fail. Overloading is tricky with external functions.
      * @param initialSupply starting token balance
+     * @return ConfigurableRightsPool instance
      */
     function createPool(uint initialSupply)
         external
@@ -335,16 +403,11 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
      * @param newWeights - final weights we want to get to
      * @param startBlock - when weights should start to change
      * @param endBlock - when weights will be at their final values
-     * Should we even be able to override these? Too low level?
-     * @param minimumWeightChangeBlockPeriod - can override default value
-     * @param addTokenTimeLockInBlocks - can override default value
     */
     function updateWeightsGradually(
         uint[] calldata newWeights,
         uint startBlock,
-        uint endBlock,
-        uint minimumWeightChangeBlockPeriod,
-        uint addTokenTimeLockInBlocks
+        uint endBlock
     )
         external
         _logs_
@@ -353,10 +416,6 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _needsBPool_
     {
         require(_rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
-
-        // Set these values (if overloaded function called, just set to default values)
-        _minimumWeightChangeBlockPeriod = minimumWeightChangeBlockPeriod;
-        _addTokenTimeLockInBlocks = addTokenTimeLockInBlocks;
 
         // Delegate to library to save space
 
@@ -369,7 +428,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
                                            newWeights,
                                            startBlock,
                                            endBlock,
-                                           minimumWeightChangeBlockPeriod
+                                           _minimumWeightChangeBlockPeriod
                                        );
         _startBlock = actualStartBlock;
         _endBlock = endBlock;
@@ -379,31 +438,6 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
             _startWeights[i] = startWeights[i];
         }
     }
-
-    /**
-     * @notice Update weights in a predetermined way, between startBlock and endBlock,
-     *         through external cals to pokeWeights (using default values of the change period)
-     * @dev Can override the change period parameters by calling the overloaded function directly
-     * @param newWeights - final weights we want to get to
-     * @param startBlock - when weights should start to change
-     * @param endBlock - when weights will be at their final values
-
-    Why can't I overload this?
-
-    function updateWeightsGradually(
-        uint[] calldata newWeights,
-        uint startBlock,
-        uint endBlock
-    )
-        external
-    {
-        this.updateWeightsGradually(
-            newWeights,
-            startBlock,
-            endBlock,
-            DEFAULT_MIN_WEIGHT_CHANGE_BLOCK_PERIOD,
-            DEFAULT_ADD_TOKEN_TIME_LOCK_IN_BLOCKS);
-    } */
 
     /**
      * @notice External function called to make the contract update weights according to plan
