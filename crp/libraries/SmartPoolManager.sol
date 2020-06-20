@@ -30,6 +30,7 @@ library SmartPoolManager {
 
     // Don't like copying, but can't seem to get these
     // self.MIN_WEIGHT, PCToken.MIN_WEIGHT, PCToken(self).MIN_WEIGHT don't work
+    // These must be kept in sync with PCToken.sol!
     uint public constant BONE = 10**18;
     uint public constant MIN_WEIGHT = BONE;
     uint public constant MAX_WEIGHT = BONE * 50;

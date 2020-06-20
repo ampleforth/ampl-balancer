@@ -57,6 +57,8 @@ contract PCToken is IERC20 {
     string public constant NAME = "Balancer Smart Pool";
     uint8 public constant DECIMALS = 18;
 
+    // Many of these constants are unfortunately duplicated in SmartPoolManager
+    // If you change something here, change it there!
     uint public constant BONE = 10**18;
     uint public constant MIN_WEIGHT = BONE;
     uint public constant MAX_WEIGHT = BONE * 50;
