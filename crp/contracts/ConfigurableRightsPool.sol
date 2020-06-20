@@ -15,6 +15,7 @@ import "./utils/BalancerOwnable.sol";
 
 // Libraries
 import { RightsManager } from "../libraries/RightsManager.sol";
+import "../libraries/SmartPoolManager.sol";
 import "../libraries/BalancerSafeMath.sol";
 
 // Contracts
@@ -33,16 +34,6 @@ import "../libraries/BalancerSafeMath.sol";
 contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyGuard {
     using BalancerSafeMath for uint;
 
-    // Type declarations
-
-    struct NewToken {
-        address addr;
-        bool isCommitted;
-        uint commitBlock;
-        uint denorm;
-        uint balance;
-    }
-
     // State variables
 
     IBFactory public bFactory;
@@ -53,7 +44,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
 
     // This is for adding a new (currently unbound) token to the pool
     // It's a two-step process: commitAddToken(), then applyAddToken()
-    NewToken private _newToken;
+    SmartPoolManager.NewToken private _newToken;
 
     // Fee is initialized on creation, and can be changed if permission is set
     uint private _swapFee;
@@ -111,6 +102,8 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _;
     }
 
+    // Default values for these (cannot pass them into the constructor; stack too deep)
+    // They are not needed until updateWeightsGradually, so just pass them in there
     uint public constant DEFAULT_MIN_WEIGHT_CHANGE_BLOCK_PERIOD = 10;
     uint public constant DEFAULT_ADD_TOKEN_TIME_LOCK_IN_BLOCKS = 10;
 
@@ -123,7 +116,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
      * @param tokens - list of tokens to include
      * @param startBalances - initial token balances
      * @param startWeights - initial token weights
-     * @param swapFee - initial swap fee
+     * @param swapFee - initial swap fee (will set on the core pool after pool creation)
      * @param rights - Set of permissions we are assigning to this smart pool
      *                 Would ideally not want to hard-code the length, but not sure how it interacts with structures
      */
@@ -140,6 +133,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         PCToken(symbol)
     {
         require(tokens.length >= MIN_ASSET_LIMIT, "ERR_TOO_FEW_TOKENS");
+
         // Arrays must be parallel
         require(startBalances.length == tokens.length, "ERR_START_BALANCES_MISMATCH");
         require(startWeights.length == tokens.length, "ERR_START_WEIGHTS_MISMATCH");
@@ -157,7 +151,6 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _minimumWeightChangeBlockPeriod = DEFAULT_MIN_WEIGHT_CHANGE_BLOCK_PERIOD;
         _addTokenTimeLockInBlocks = DEFAULT_ADD_TOKEN_TIME_LOCK_IN_BLOCKS;
         _rights = rights;
-        _newToken.isCommitted = false;
     }
 
     // External functions
@@ -179,7 +172,6 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
     /**
      * @notice Get the denormalized weight of a token
      * @dev _viewlock_ to prevent calling if it's being updated
-     *      (updateWeight is _lock_)
      * @return token weight
      */
     function getDenormalizedWeight(address token)
@@ -314,7 +306,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
      *      If prices could be changed, this would allow the controller to drain the pool by arbing price changes
      * @param token - token to be reweighted
      * @param newWeight - new weight of the token
-     */
+    */
     function updateWeight(address token, uint newWeight)
         external
         _logs_
@@ -324,83 +316,11 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
     {
         require(_rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
 
-        require(newWeight >= MIN_WEIGHT, "ERR_MIN_WEIGHT");
-        require(newWeight <= MAX_WEIGHT, "ERR_MAX_WEIGHT");
+        // We don't want people to set weights manually if there's a block-based update in progress
+        require(_startBlock == 0, "ERR_NO_UPDATE_DURING_GRADUAL");
 
-        // Assuming we don't want people to set weights manually if there's a block-based update in progress
-        require(_startBlock == 0, "ERR_NO_MANUAL_UPDATE_DURING_GRADUAL");
-
-        uint currentWeight = bPool.getDenormalizedWeight(token);
-        if (currentWeight == newWeight) {
-             return;
-        }
-
-        uint currentBalance = bPool.getBalance(token);
-        uint totalSupply = totalSupply();
-        uint totalWeight = bPool.getTotalDenormalizedWeight();
-        uint poolShares;
-        uint deltaBalance;
-        uint deltaWeight;
-        uint newBalance;
-
-        if (newWeight < currentWeight) {
-            // This means the controller will withdraw tokens to keep price
-            // So they need to redeem PCTokens
-            // This will raise the weight; check to make sure it doesn't go over the max
-            deltaWeight = BalancerSafeMath.bsub(currentWeight, newWeight);
-
-            require(BalancerSafeMath.badd(totalWeight, deltaWeight) <= MAX_TOTAL_WEIGHT,
-                    "ERR_MAX_TOTAL_WEIGHT");
-
-
-            // poolShares = totalSupply * (deltaWeight / totalWeight)
-            poolShares = BalancerSafeMath.bmul(totalSupply,
-                                               BalancerSafeMath.bdiv(deltaWeight, totalWeight));
-
-            // deltaBalance = currentBalance * (deltaWeight / currentWeight)
-            deltaBalance = BalancerSafeMath.bmul(currentBalance,
-                                                 BalancerSafeMath.bdiv(deltaWeight, currentWeight));
-
-            // New balance cannot be lower than MIN_BALANCE
-            newBalance = BalancerSafeMath.bsub(currentBalance, deltaBalance);
-
-            require(newBalance >= MIN_BALANCE, "ERR_MIN_BALANCE");
-
-            // First get the tokens from this contract (Pool Controller) to msg.sender
-            bPool.rebind(token, newBalance, newWeight);
-
-            // Now with the tokens this contract can send them to msg.sender
-            bool xfer = IERC20(token).transfer(msg.sender, deltaBalance);
-            require(xfer, "ERR_ERC20_FALSE");
-
-            _pullPoolShare(msg.sender, poolShares);
-            _burnPoolShare(poolShares);
-        }
-        else {
-            // This means the controller will deposit tokens to keep the price.
-            // They will be minted and given PCTokens
-            deltaWeight = BalancerSafeMath.bsub(newWeight, currentWeight);
-
-            require(BalancerSafeMath.badd(totalWeight, deltaWeight) <= MAX_TOTAL_WEIGHT,
-                    "ERR_MAX_TOTAL_WEIGHT");
-
-            // poolShares = totalSupply * (deltaWeight / totalWeight)
-            poolShares = BalancerSafeMath.bmul(totalSupply,
-                                               BalancerSafeMath.bdiv(deltaWeight, totalWeight));
-            // deltaBalance = currentBalance * (deltaWeight / currentWeight)
-            deltaBalance = BalancerSafeMath.bmul(currentBalance,
-                                                 BalancerSafeMath.bdiv(deltaWeight, currentWeight));
-
-            // First gets the tokens from msg.sender to this contract (Pool Controller)
-            bool xfer = IERC20(token).transferFrom(msg.sender, address(this), deltaBalance);
-            require(xfer, "ERR_ERC20_FALSE");
-
-            // Now with the tokens this contract can bind them to the pool it controls
-            bPool.rebind(token, BalancerSafeMath.badd(currentBalance, deltaBalance), newWeight);
-
-            _mintPoolShare(poolShares);
-            _pushPoolShare(msg.sender, poolShares);
-        }
+        // Delegate to library to save space
+        SmartPoolManager.updateWeight(this, bPool, token, newWeight);
     }
 
     /**
@@ -415,7 +335,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
      * Should we even be able to override these? Too low level?
      * @param minimumWeightChangeBlockPeriod - can override default value
      * @param addTokenTimeLockInBlocks - can override default value
-     */
+    */
     function updateWeightsGradually(
         uint[] calldata newWeights,
         uint startBlock,
@@ -435,46 +355,25 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _minimumWeightChangeBlockPeriod = minimumWeightChangeBlockPeriod;
         _addTokenTimeLockInBlocks = addTokenTimeLockInBlocks;
 
-        // Enforce a minimum time over which to make the changes
-        // The also prevents endBlock <= startBlock
-        require(BalancerSafeMath.bsub(endBlock, startBlock) >= _minimumWeightChangeBlockPeriod,
-                "ERR_WEIGHT_CHANGE_PERIOD_BELOW_MIN");
-        // Don't start this when we're in the middle of adding a new token
-        require(_newToken.isCommitted == false, "ERR_PENDING_TOKEN_ADD");
+        // Delegate to library to save space
 
-        uint weightsSum = 0;
-        // Check that endWeights are valid now to avoid reverting in a future pokeWeights call
-        // *Could* set startWeights now, and check for the case of newWeights=startWeights, and
-        // revert in that case. I say not worth the gas to check that edge case - just make sure
-        // it will still work (i.e., make no weight changes) if that happens. Unless we care about
-        // the following:
-        //
-        // Such a call could be used to prevent anyone from starting a weight update.
-        // You could have an endBlock years in the future, and set the newWeights equal to the current;
-        // then no one could update the weights for years
-         for (uint i = 0; i < _tokens.length; i++) {
-            require(newWeights[i] <= MAX_WEIGHT, "ERR_WEIGHT_ABOVE_MAX");
-            require(newWeights[i] >= MIN_WEIGHT, "ERR_WEIGHT_BELOW_MIN");
-
-            weightsSum = BalancerSafeMath.badd(weightsSum, newWeights[i]);
-        }
-        require(weightsSum <= MAX_TOTAL_WEIGHT, "ERR_MAX_TOTAL_WEIGHT");
-
-        if(block.number > startBlock){
-            // This means the weight update should start ASAP
-            // Moving the start block up prevents a big jump/discontinuity in the weights
-            _startBlock = block.number;
-        }
-        else{
-            _startBlock = startBlock;
-        }
-
+        // Library computes the startBlock, computes startWeights as the current
+        // denormalized weights of the core pool tokens.
+        (uint actualStartBlock,
+         uint[] memory startWeights) = SmartPoolManager.updateWeightsGradually(
+                                           bPool,
+                                           _newToken,
+                                           newWeights,
+                                           startBlock,
+                                           endBlock,
+                                           minimumWeightChangeBlockPeriod
+                                       );
+        _startBlock = actualStartBlock;
         _endBlock = endBlock;
         _newWeights = newWeights;
 
         for (uint i = 0; i < _tokens.length; i++) {
-            // startWeights are current weights
-            _startWeights[i] = bPool.getDenormalizedWeight(_tokens[i]);
+            _startWeights[i] = startWeights[i];
         }
     }
 
@@ -507,7 +406,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
      * @notice External function called to make the contract update weights according to plan
      * @dev Still works if we poke after the end of the period; also works if the weights don't change
      *      Resets if we are poking beyond the end, so that we can do it again
-     */
+    */
     function pokeWeights()
         external
         _logs_
@@ -515,74 +414,15 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _needsBPool_
     {
         require(_rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
-        require(block.number >= _startBlock, "ERR_CANT_POKE_YET");
 
-        // Do nothing if we call this when there is no update plan
-        if (_startBlock == 0) {
-            return;
-        }
-
-        // Error to call it before the start of the plan
-        require(block.number >= _startBlock, "ERR_CANT_POKE_YET");
-        // Proposed error message improvement
-        // require(block.number >= _startBlock, "ERR_NO_HOKEY_POKEY");
-
-        // This allows for pokes after endBlock that get weights to endWeights
-        // Get the current block (or the endBlock, if we're already past the end)
-        uint currentBlock;
-        if (block.number > _endBlock) {
-            currentBlock = _endBlock;
-        }
-        else {
-            currentBlock = block.number;
-        }
-
-        uint blockPeriod = BalancerSafeMath.bsub(_endBlock, _startBlock);
-        uint blocksElapsed = BalancerSafeMath.bsub(currentBlock, _startBlock);
-        uint weightDelta;
-        uint deltaPerBlock;
-        uint newWeight;
-
-        for (uint i = 0; i < _tokens.length; i++) {
-            // Make sure it does nothing if the new and old weights are the same (saves gas)
-            // It's a degenerate case if they're *all* the same, but you certainly could have
-            // a plan where you only change some of the weights in the set
-            if (_startWeights[i] != _newWeights[i]) {
-                if (_newWeights[i] < _startWeights[i]) {
-                    // We are decreasing the weight
-
-                    // First get the total weight delta
-                    weightDelta = BalancerSafeMath.bsub(_startWeights[i], _newWeights[i]);
-                    // And the amount it should change per block = total change/number of blocks in the period
-                    deltaPerBlock = BalancerSafeMath.bdiv(weightDelta, blockPeriod);
-                    //deltaPerBlock = bdivx(weightDelta, blockPeriod);
-
-                     // newWeight = startWeight - (blocksElapsed * deltaPerBlock)
-                    newWeight = BalancerSafeMath.bsub(_startWeights[i],
-                                                      BalancerSafeMath.bmul(blocksElapsed, deltaPerBlock));
-                }
-                else {
-                    // We are increasing the weight
-
-                    // First get the total weight delta
-                    weightDelta = BalancerSafeMath.bsub(_newWeights[i], _startWeights[i]);
-                    // And the amount it should change per block = total change/number of blocks in the period
-                    deltaPerBlock = BalancerSafeMath.bdiv(weightDelta, blockPeriod);
-                    //deltaPerBlock = bdivx(weightDelta, blockPeriod);
-
-                     // newWeight = startWeight + (blocksElapsed * deltaPerBlock)
-                    newWeight = BalancerSafeMath.badd(_startWeights[i],
-                                                      BalancerSafeMath.bmul(blocksElapsed, deltaPerBlock));
-                }
-
-                bPool.rebind(_tokens[i], bPool.getBalance(_tokens[i]), newWeight);
-            }
-        }
-
-        // If we have reached the end, reset to allow doing it again
-        if (block.number > _endBlock) {
-            _startBlock = 0;
-        }
+        // Delegate to library to save space
+        SmartPoolManager.pokeWeights(
+            bPool,
+            _startBlock,
+            _endBlock,
+            _startWeights,
+            _newWeights
+        );
     }
 
     /**
@@ -605,23 +445,19 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _onlyOwner_
         _needsBPool_
     {
-        require(_rights.canAddRemoveTokens, "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
-        require(bPool.isBound(token) == false, "ERR_IS_BOUND");
+        require(_rights.canAddRemoveTokens, "ERR_CANNOT_ADD_REMOVE_TOKENS");
 
-        require(denormalizedWeight <= MAX_WEIGHT, "ERR_WEIGHT_ABOVE_MAX");
-        require(denormalizedWeight >= MIN_WEIGHT, "ERR_WEIGHT_BELOW_MIN");
-        require(BalancerSafeMath.badd(bPool.getTotalDenormalizedWeight(),
-                                      denormalizedWeight) <= MAX_TOTAL_WEIGHT,
-                "ERR_MAX_TOTAL_WEIGHT");
+        // Can't do this while a progressive update is happening
+        require(_startBlock == 0, "ERR_NO_UPDATE_DURING_GRADUAL");
 
-        // Assume we can't do this while a progressive update is happening
-        require(_startBlock == 0, "ERR_NO_MANUAL_UPDATE_DURING_GRADUAL");
-
-        _newToken.addr = token;
-        _newToken.balance = balance;
-        _newToken.denorm = denormalizedWeight;
-        _newToken.commitBlock = block.number;
-        _newToken.isCommitted = true;
+        // Delegate to library to save space
+        SmartPoolManager.commitAddToken(
+            bPool,
+            token,
+            balance,
+            denormalizedWeight,
+            _newToken
+        );
     }
 
     /**
@@ -634,31 +470,15 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _onlyOwner_
         _needsBPool_
     {
-        require(_rights.canAddRemoveTokens, "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
-        require(_newToken.isCommitted, "ERR_NO_TOKEN_COMMIT");
-        require(BalancerSafeMath.bsub(block.number, _newToken.commitBlock) >= _addTokenTimeLockInBlocks,
-                                      "ERR_TIMELOCK_STILL_COUNTING");
+        require(_rights.canAddRemoveTokens, "ERR_CANNOT_ADD_REMOVE_TOKENS");
 
-        uint totalSupply = totalSupply();
-
-        // poolShares = totalSupply * newTokenWeight / totalWeight
-        uint poolShares = BalancerSafeMath.bdiv(BalancerSafeMath.bmul(totalSupply, _newToken.denorm),
-                                                bPool.getTotalDenormalizedWeight());
-
-        // Clear this to allow adding more tokens
-        _newToken.isCommitted = false;
-
-        // First gets the tokens from msg.sender to this contract (Pool Controller)
-        bool xfer = IERC20(_newToken.addr).transferFrom(msg.sender, address(this), _newToken.balance);
-        require(xfer, "ERR_ERC20_FALSE");
-
-        // Now with the tokens this contract can bind them to the pool it controls
-        // Approves bPool to pull from this controller (only approve exact balance, not unlimited, for security)
-        IERC20(_newToken.addr).approve(address(bPool), _newToken.balance);
-        bPool.bind(_newToken.addr, _newToken.balance, _newToken.denorm);
-
-        _mintPoolShare(poolShares);
-        _pushPoolShare(msg.sender, poolShares);
+        // Delegate to library to save space
+        SmartPoolManager.applyAddToken(
+            this,
+            bPool,
+            _addTokenTimeLockInBlocks,
+            _newToken
+        );
     }
 
      /**
@@ -672,28 +492,14 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _onlyOwner_
         _needsBPool_
     {
-        require(_rights.canAddRemoveTokens, "ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS");
+        require(_rights.canAddRemoveTokens, "ERR_CANNOT_ADD_REMOVE_TOKENS");
 
-        uint totalSupply = totalSupply();
-
-        // poolShares = totalSupply * tokenWeight / totalWeight
-        uint poolShares = BalancerSafeMath.bdiv(BalancerSafeMath.bmul(totalSupply,
-                                                                      bPool.getDenormalizedWeight(token)),
-                                                bPool.getTotalDenormalizedWeight());
-
-        // this is what will be unbound from the pool
-        // Have to get it before unbinding
-        uint balance = bPool.getBalance(token);
-
-        // Unbind and get the tokens out of balancer pool
-        bPool.unbind(token);
-
-        // Now with the tokens this contract can send them to msg.sender
-        bool xfer = IERC20(token).transfer(msg.sender, balance);
-        require(xfer, "ERR_ERC20_FALSE");
-
-        _pullPoolShare(msg.sender, poolShares);
-        _burnPoolShare(poolShares);
+        // Delegate to library to save space
+        SmartPoolManager.removeToken(
+            this,
+            bPool,
+            token
+        );
     }
 
     /**
@@ -708,20 +514,22 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _lock_
         _needsBPool_
     {
-        require(maxAmountsIn.length == _tokens.length, "ERR_AMOUNTS_MISMATCH");
+        // Delegate to library to save space
 
-        uint poolTotal = totalSupply();
-        uint ratio = BalancerSafeMath.bdiv(poolAmountOut, poolTotal);
-
-        require(ratio != 0, "ERR_MATH_APPROX");
+        // Library computes actualAmountsIn, and does many validations
+        // Cannot call the push/pull/min from an external library for
+        // any of these pool functions. Since msg.sender can be anybody,
+        // they must be internal
+        uint[] memory actualAmountsIn = SmartPoolManager.joinPool(
+                                            this,
+                                            bPool,
+                                            poolAmountOut,
+                                            maxAmountsIn
+                                        );
 
         for (uint i = 0; i < _tokens.length; i++) {
             address t = _tokens[i];
-            uint bal = bPool.getBalance(t);
-            uint tokenAmountIn = BalancerSafeMath.bmul(ratio, bal);
-
-            require(tokenAmountIn != 0, "ERR_MATH_APPROX");
-            require(tokenAmountIn <= maxAmountsIn[i], "ERR_LIMIT_IN");
+            uint tokenAmountIn = actualAmountsIn[i];
 
             emit LOG_JOIN(msg.sender, t, tokenAmountIn);
 
@@ -744,17 +552,18 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _lock_
         _needsBPool_
     {
-        require(minAmountsOut.length == _tokens.length, "ERR_AMOUNTS_MISMATCH");
+        // Delegate to library to save space
 
-        uint poolTotal = totalSupply();
-
-        // Calculate exit fee and the final amount in
-        uint exitFee = BalancerSafeMath.bmul(poolAmountIn, EXIT_FEE);
-        uint pAiAfterExitFee = BalancerSafeMath.bsub(poolAmountIn, exitFee);
-
-        uint ratio = BalancerSafeMath.bdiv(pAiAfterExitFee, poolTotal);
-
-        require(ratio != 0, "ERR_MATH_APPROX");
+        // Library computes actualAmountsOut, and does many validations
+        // Also computes the exitFee and pAiAfterExitFee
+        (uint exitFee,
+         uint pAiAfterExitFee,
+         uint[] memory actualAmountsOut) = SmartPoolManager.exitPool(
+                                               this,
+                                               bPool,
+                                               poolAmountIn,
+                                               minAmountsOut
+                                           );
 
         _pullPoolShare(msg.sender, poolAmountIn);
         _pushPoolShare(address(bFactory), exitFee);
@@ -762,11 +571,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
 
         for (uint i = 0; i < _tokens.length; i++) {
             address t = _tokens[i];
-            uint bal = bPool.getBalance(t);
-            uint tokenAmountOut = BalancerSafeMath.bmul(ratio, bal);
-
-            require(tokenAmountOut != 0, "ERR_MATH_APPROX");
-            require(tokenAmountOut >= minAmountsOut[i], "ERR_LIMIT_OUT");
+            uint tokenAmountOut = actualAmountsOut[i];
 
             emit LOG_EXIT(msg.sender, t, tokenAmountOut);
 
@@ -794,20 +599,15 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _needsBPool_
         returns (uint poolAmountOut)
     {
-        require(bPool.isBound(tokenIn), "ERR_NOT_BOUND");
-        require(tokenAmountIn <= BalancerSafeMath.bmul(bPool.getBalance(tokenIn), MAX_IN_RATIO),
-                                                       "ERR_MAX_IN_RATIO");
-
-        poolAmountOut = bPool.calcPoolOutGivenSingleIn(
-                            bPool.getBalance(tokenIn),
-                            bPool.getDenormalizedWeight(tokenIn),
-                            _totalSupply,
-                            bPool.getTotalDenormalizedWeight(),
+        // Delegate to library to save space
+        poolAmountOut = SmartPoolManager.joinswapExternAmountIn(
+                            this,
+                            bPool,
+                            _swapFee,
+                            tokenIn,
                             tokenAmountIn,
-                            _swapFee
+                            minPoolAmountOut
                         );
-
-        require(poolAmountOut >= minPoolAmountOut, "ERR_LIMIT_OUT");
 
         emit LOG_JOIN(msg.sender, tokenIn, tokenAmountIn);
 
@@ -838,22 +638,15 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _needsBPool_
         returns (uint tokenAmountIn)
     {
-        require(bPool.isBound(tokenIn), "ERR_NOT_BOUND");
-
-        tokenAmountIn = bPool.calcSingleInGivenPoolOut(
-                            bPool.getBalance(tokenIn),
-                            bPool.getDenormalizedWeight(tokenIn),
-                            _totalSupply,
-                            bPool.getTotalDenormalizedWeight(),
+        // Delegate to library to save space
+        tokenAmountIn = SmartPoolManager.joinswapPoolAmountOut(
+                            this,
+                            bPool,
+                            _swapFee,
+                            tokenIn,
                             poolAmountOut,
-                            _swapFee
+                            maxAmountIn
                         );
-
-        require(tokenAmountIn != 0, "ERR_MATH_APPROX");
-        require(tokenAmountIn <= maxAmountIn, "ERR_LIMIT_IN");
-
-        require(tokenAmountIn <= BalancerSafeMath.bmul(bPool.getBalance(tokenIn), MAX_IN_RATIO),
-                                                       "ERR_MAX_IN_RATIO");
 
         emit LOG_JOIN(msg.sender, tokenIn, tokenAmountIn);
 
@@ -884,27 +677,26 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _needsBPool_
         returns (uint tokenAmountOut)
     {
-        require(bPool.isBound(tokenOut), "ERR_NOT_BOUND");
+        // Delegate to library to save space
 
-        tokenAmountOut = bPool.calcSingleOutGivenPoolIn(
-                            bPool.getBalance(tokenOut),
-                            bPool.getDenormalizedWeight(tokenOut),
-                            _totalSupply,
-                            bPool.getTotalDenormalizedWeight(),
-                            poolAmountIn,
-                            _swapFee
-                        );
+        // Calculates final amountOut, and the fee and final amount in
+        (uint exitFee,
+         uint pAiAfterExitFee,
+         uint amountOut) = SmartPoolManager.exitswapPoolAmountIn(
+                               this,
+                               bPool,
+                               _swapFee,
+                               tokenOut,
+                               poolAmountIn,
+                               minAmountOut
+                           );
 
-        require(tokenAmountOut >= minAmountOut, "ERR_LIMIT_OUT");
-        require(tokenAmountOut <= BalancerSafeMath.bmul(bPool.getBalance(tokenOut), MAX_OUT_RATIO),
-                                                        "ERR_MAX_OUT_RATIO");
-
-        uint exitFee = BalancerSafeMath.bmul(poolAmountIn, EXIT_FEE);
+        tokenAmountOut = amountOut;
 
         emit LOG_EXIT(msg.sender, tokenOut, tokenAmountOut);
 
         _pullPoolShare(msg.sender, poolAmountIn);
-        _burnPoolShare(BalancerSafeMath.bsub(poolAmountIn, exitFee));
+        _burnPoolShare(pAiAfterExitFee);
         _pushPoolShare(address(bFactory), exitFee);
         _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
 
@@ -931,27 +723,26 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _needsBPool_
         returns (uint poolAmountIn)
     {
-        require(bPool.isBound(tokenOut), "ERR_NOT_BOUND");
-        require(tokenAmountOut <= BalancerSafeMath.bmul(bPool.getBalance(tokenOut), MAX_OUT_RATIO),
-                                                        "ERR_MAX_OUT_RATIO");
-        poolAmountIn = bPool.calcPoolInGivenSingleOut(
-                            bPool.getBalance(tokenOut),
-                            bPool.getDenormalizedWeight(tokenOut),
-                            _totalSupply,
-                            bPool.getTotalDenormalizedWeight(),
-                            tokenAmountOut,
-                            _swapFee
-                        );
+        // Delegate to library to save space
 
-        require(poolAmountIn != 0, "ERR_MATH_APPROX");
-        require(poolAmountIn <= maxPoolAmountIn, "ERR_LIMIT_IN");
+        // Calculates final amounts in, accounting for the exit fee
+        (uint exitFee,
+         uint pAiAfterExitFee,
+         uint amountIn) = SmartPoolManager.exitswapExternAmountOut(
+                              this,
+                              bPool,
+                              _swapFee,
+                              tokenOut,
+                              tokenAmountOut,
+                              maxPoolAmountIn
+                          );
 
-        uint exitFee = BalancerSafeMath.bmul(poolAmountIn, EXIT_FEE);
+        poolAmountIn = amountIn;
 
         emit LOG_EXIT(msg.sender, tokenOut, tokenAmountOut);
 
         _pullPoolShare(msg.sender, poolAmountIn);
-        _burnPoolShare(BalancerSafeMath.bsub(poolAmountIn, exitFee));
+        _burnPoolShare(pAiAfterExitFee);
         _pushPoolShare(address(bFactory), exitFee);
         _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
 
@@ -963,7 +754,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
     // Internal functions
 
     // Rebind BPool and pull tokens from address
-    function _pullUnderlying(address erc20, address from, uint amount) internal {
+    function _pullUnderlying(address erc20, address from, uint amount) internal _needsBPool_ {
         // Gets current Balance of token i, Bi, and weight of token i, Wi, from BPool.
         uint tokenBalance = bPool.getBalance(erc20);
         uint tokenWeight = bPool.getDenormalizedWeight(erc20);
@@ -974,7 +765,7 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
     }
 
     // Rebind BPool and push tokens to address
-    function _pushUnderlying(address erc20, address to, uint amount) internal {
+    function _pushUnderlying(address erc20, address to, uint amount) internal _needsBPool_ {
         // Gets current Balance of token i, Bi, and weight of token i, Wi, from BPool.
         uint tokenBalance = bPool.getBalance(erc20);
         uint tokenWeight = bPool.getDenormalizedWeight(erc20);
@@ -994,11 +785,39 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _push(to, amount);
     }
 
-    function _pullPoolShare(address from, uint amount) internal {
+    function _pullPoolShare(address from, uint amount) internal  {
         _pull(from, amount);
     }
 
-    function _burnPoolShare(uint amount) internal {
+    function _burnPoolShare(uint amount) internal  {
+        _burn(amount);
+    }
+
+    // "Public" versions that can safely be called from SmartPoolManager
+    // If called from external accounts, will fail if not controller
+    // Allows the contract itself to call them internally
+
+    function _mintPoolShareFromLib(uint amount) public {
+        require (msg.sender == getController() || msg.sender == address(this), "ERR_NOT_CONTROLLER");
+
+        _mint(amount);
+    }
+
+    function _pushPoolShareFromLib(address to, uint amount) public {
+        require (msg.sender == getController() || msg.sender == address(this), "ERR_NOT_CONTROLLER");
+
+        _push(to, amount);
+    }
+
+    function _pullPoolShareFromLib(address from, uint amount) public  {
+        require (msg.sender == getController() || msg.sender == address(this), "ERR_NOT_CONTROLLER");
+
+        _pull(from, amount);
+    }
+
+    function _burnPoolShareFromLib(uint amount) public  {
+        require (msg.sender == getController() || msg.sender == address(this), "ERR_NOT_CONTROLLER");
+
         _burn(amount);
     }
 }

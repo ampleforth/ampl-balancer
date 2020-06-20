@@ -57,6 +57,10 @@ interface IBPool {
     )
         external pure
         returns (uint poolAmountIn);
+
+    function getCurrentTokens()
+        external view
+        returns (address[] memory tokens);
 }
 
 interface IBFactory {

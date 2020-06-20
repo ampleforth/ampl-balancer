@@ -148,17 +148,17 @@ contract('configurableSwapFee', async (accounts) => {
     it('Configurable tokens should revert because non-permissioned', async () => {
         truffleAssert.reverts(
             crpPool.commitAddToken(ABC, toWei('1'), toWei('1')),
-            'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
+            'ERR_CANNOT_ADD_REMOVE_TOKENS',
         );
 
         truffleAssert.reverts(
             crpPool.applyAddToken(),
-            'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
+            'ERR_CANNOT_ADD_REMOVE_TOKENS',
         );
 
         truffleAssert.reverts(
             crpPool.removeToken(WETH),
-            'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
+            'ERR_CANNOT_ADD_REMOVE_TOKENS',
         );
     });
 

@@ -458,7 +458,7 @@ contract('configurableWeights', async (accounts) => {
 
             await truffleAssert.reverts(
                 crpPool.updateWeightsGradually([toWei('3'), toWei('6'), toWei('6')], startBlock, endBlock, 10, 10),
-                'ERR_WEIGHT_CHANGE_PERIOD_BELOW_MIN',
+                'ERR_WEIGHT_CHANGE_TIME_BELOW_MIN',
             );
         });
 
@@ -787,21 +787,21 @@ contract('configurableWeights', async (accounts) => {
         it('Remove token should revert because non-permissioned', async () => {
             await truffleAssert.reverts(
                 crpPool.removeToken(DAI),
-                'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
+                'ERR_CANNOT_ADD_REMOVE_TOKENS',
             );
         });
 
         it('Commit add token should revert because non-permissioned', async () => {
             await truffleAssert.reverts(
                 crpPool.commitAddToken(DAI, toWei('150000'), toWei('1.5')),
-                'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
+                'ERR_CANNOT_ADD_REMOVE_TOKENS',
             );
         });
 
         it('Apply add token should revert because non-permissioned', async () => {
             await truffleAssert.reverts(
                 crpPool.applyAddToken(),
-                'ERR_NOT_CONFIGURABLE_ADD_REMOVE_TOKENS',
+                'ERR_CANNOT_ADD_REMOVE_TOKENS',
             );
         });
     });

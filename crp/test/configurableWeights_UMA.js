@@ -111,7 +111,7 @@ contract('CRPFactory', async (accounts) => {
             it('Cannot manually update when an automatic one is running', async () => {
                 await truffleAssert.reverts(
                     controller.updateWeight(weth.address, toWei('20')),
-                    'ERR_NO_MANUAL_UPDATE_DURING_GRADUAL',
+                    'ERR_NO_UPDATE_DURING_GRADUAL',
                 );
             });
 
@@ -120,7 +120,7 @@ contract('CRPFactory', async (accounts) => {
                     // Need to add one that's not bound, and also have the add/remove token permission set
                     // to trigger this error
                     controller.commitAddToken(DAI, toWei('10000'), toWei('1.5')),
-                    'ERR_NO_MANUAL_UPDATE_DURING_GRADUAL',
+                    'ERR_NO_UPDATE_DURING_GRADUAL',
                 );
             });
 
