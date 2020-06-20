@@ -67,6 +67,9 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
     // This is also the wait time between committing and applying a new token
     uint private _addTokenTimeLockInBlocks;
 
+    // Whitelist of LPs (if configured)
+    mapping(address => bool) private _liquidityProviderWhitelist;
+
     // Event declarations
 
     // Anonymous logger event - can only be filtered by contract address
@@ -514,6 +517,9 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _lock_
         _needsBPool_
     {
+        require(_rights.canWhitelistLPs == false || _liquidityProviderWhitelist[msg.sender],
+                "ERR_NOT_ON_WHITELIST");
+
         // Delegate to library to save space
 
         // Library computes actualAmountsIn, and does many validations
@@ -599,6 +605,9 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _needsBPool_
         returns (uint poolAmountOut)
     {
+        require(_rights.canWhitelistLPs == false || _liquidityProviderWhitelist[msg.sender],
+                "ERR_NOT_ON_WHITELIST");
+
         // Delegate to library to save space
         poolAmountOut = SmartPoolManager.joinswapExternAmountIn(
                             this,
@@ -638,6 +647,9 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _needsBPool_
         returns (uint tokenAmountIn)
     {
+        require(_rights.canWhitelistLPs == false || _liquidityProviderWhitelist[msg.sender],
+                "ERR_NOT_ON_WHITELIST");
+
         // Delegate to library to save space
         tokenAmountIn = SmartPoolManager.joinswapPoolAmountOut(
                             this,
@@ -747,6 +759,42 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _pushUnderlying(tokenOut, msg.sender, tokenAmountOut);
 
         return poolAmountIn;
+    }
+
+    /**
+     * @notice Check if an address is a liquidity provider
+     * @dev If the whitelist feature is not enabled, anyone can provide liquidity (assuming finalized)
+     * @return boolean value indicating whether the address can join a pool
+     */
+    function canProvideLiquidity(address provider)
+        external
+        view
+        returns(bool)
+    {
+        if (_rights.canWhitelistLPs) {
+            return _liquidityProviderWhitelist[provider];
+        }
+        else {
+            // Probably don't strictly need this (could just return true)
+            // But the null address can't provide funds
+            return provider != address(0);
+        }
+    }
+
+    /**
+     * @notice Add to the whitelist of liquidity providers (if enabled)
+     * @param provider - address of the liquidity provider
+     */
+    function whitelistLiquidityProvider(address provider)
+        external
+        _onlyOwner_
+        _lock_
+        _logs_
+    {
+        require(_rights.canWhitelistLPs, "ERR_CANNOT_WHITELIST_LPS");
+        require(provider != address(0), "ERR_INVALID_ADDRESS");
+
+        _liquidityProviderWhitelist[provider] = true;
     }
 
     // Public functions

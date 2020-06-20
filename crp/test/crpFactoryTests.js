@@ -1,8 +1,9 @@
 const BFactory = artifacts.require('BFactory');
 const ConfigurableRightsPool = artifacts.require('ConfigurableRightsPool');
-const truffleAssert = require('truffle-assertions');
 const CRPFactory = artifacts.require('CRPFactory');
 const TToken = artifacts.require('TToken');
+const truffleAssert = require('truffle-assertions');
+
 
 contract('CRPFactory', async (accounts) => {
     const admin = accounts[0];
@@ -29,6 +30,7 @@ contract('CRPFactory', async (accounts) => {
         canChangeSwapFee: false,
         canChangeWeights: false,
         canAddRemoveTokens: true,
+        canWhitelistLPs: false,
     };
 
     before(async () => {

@@ -41,6 +41,7 @@ contract('configurableAddRemoveTokens', async (accounts) => {
         canChangeSwapFee: false,
         canChangeWeights: false,
         canAddRemoveTokens: true,
+        canWhitelistLPs: false,
     };
 
     before(async () => {
@@ -115,7 +116,7 @@ contract('configurableAddRemoveTokens', async (accounts) => {
         assert.isTrue(addRemoveRight);
 
         let x;
-        for (x = 0; x <= 3; x++) {
+        for (x = 0; x < permissions.length; x++) {
             if (x !== 3) {
                 const otherPerm = await crpPool.hasPermission(x);
                 assert.isFalse(otherPerm);

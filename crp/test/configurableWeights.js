@@ -56,6 +56,7 @@ contract('configurableWeights', async (accounts) => {
         canChangeSwapFee: false,
         canChangeWeights: true,
         canAddRemoveTokens: false,
+        canWhitelistLPs: false,
     };
 
     let validEndBlock; let
@@ -133,7 +134,7 @@ contract('configurableWeights', async (accounts) => {
             assert.isTrue(reweightRight);
 
             let x;
-            for (x = 0; x <= 3; x++) {
+            for (x = 0; x < permissions.length; x++) {
                 if (x !== 2) {
                     const otherPerm = await crpPool.hasPermission(x);
                     assert.isFalse(otherPerm);

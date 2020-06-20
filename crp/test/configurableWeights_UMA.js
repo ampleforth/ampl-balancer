@@ -15,6 +15,7 @@ contract('CRPFactory', async (accounts) => {
         canChangeSwapFee: false,
         canChangeWeights: true,
         canAddRemoveTokens: true,
+        canWhitelistLPs: false,
     };
 
     describe('Factory', () => {

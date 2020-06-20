@@ -31,6 +31,7 @@ contract('pausableSwap', async (accounts) => {
         canChangeSwapFee: false,
         canChangeWeights: false,
         canAddRemoveTokens: false,
+        canWhitelistLPs: false,
     };
 
     before(async () => {
@@ -97,7 +98,7 @@ contract('pausableSwap', async (accounts) => {
         assert.isTrue(swapRight);
 
         let x;
-        for (x = 0; x <= 3; x++) {
+        for (x = 0; x < permissions.length; x++) {
             if (x !== 0) {
                 const otherPerm = await crpPool.hasPermission(x);
                 assert.isFalse(otherPerm);

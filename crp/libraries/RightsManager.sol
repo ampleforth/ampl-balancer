@@ -20,13 +20,15 @@ library RightsManager {
     enum Permissions { PAUSE_SWAPPING,
                        CHANGE_SWAP_FEE,
                        CHANGE_WEIGHTS,
-                       ADD_REMOVE_TOKENS }
+                       ADD_REMOVE_TOKENS,
+                       WHITELIST_LPS }
 
     struct Rights {
         bool canPauseSwapping;
         bool canChangeSwapFee;
         bool canChangeWeights;
         bool canAddRemoveTokens;
+        bool canWhitelistLPs;
     }
 
     // State variables (can only be constants in a library)
@@ -34,6 +36,7 @@ library RightsManager {
     bool public constant DEFAULT_CAN_CHANGE_SWAP_FEE = false;
     bool public constant DEFAULT_CAN_CHANGE_WEIGHTS = true;
     bool public constant DEFAULT_CAN_ADD_REMOVE_TOKENS = true;
+    bool public constant DEFAULT_CAN_WHITELIST_LPS = false;
 
     // Functions
 
@@ -45,10 +48,11 @@ library RightsManager {
             return Rights(DEFAULT_CAN_PAUSE_SWAPPING,
                           DEFAULT_CAN_CHANGE_SWAP_FEE,
                           DEFAULT_CAN_CHANGE_WEIGHTS,
-                          DEFAULT_CAN_ADD_REMOVE_TOKENS);
+                          DEFAULT_CAN_ADD_REMOVE_TOKENS,
+                          DEFAULT_CAN_WHITELIST_LPS);
         }
         else {
-            return Rights(a[0], a[1], a[2], a[3]);
+            return Rights(a[0], a[1], a[2], a[3], a[4]);
         }
     }
 
@@ -70,6 +74,9 @@ library RightsManager {
         }
         else if (Permissions.ADD_REMOVE_TOKENS == _permission) {
             return self.canAddRemoveTokens;
+        }
+        else if (Permissions.WHITELIST_LPS == _permission) {
+            return self.canWhitelistLPs;
         }
     }
 }

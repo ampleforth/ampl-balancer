@@ -31,6 +31,7 @@ contract('crpPoolTests', async (accounts) => {
         canChangeSwapFee: true,
         canChangeWeights: true,
         canAddRemoveTokens: true,
+        canWhitelistLPs: false,
     };
 
     let crpFactory; let bFactory; let bPool; let
@@ -114,7 +115,7 @@ contract('crpPoolTests', async (accounts) => {
         // const currentRights = await crpPool.getCurrentRights();
         // assert.sameMembers(currentRights, [true, true, true, true]);
         let x;
-        for (x = 0; x <= 3; x++) {
+        for (x = 0; x < permissions.length; x++) {
             const perm = await crpPool.hasPermission(x);
             assert.isTrue(perm);
         }
