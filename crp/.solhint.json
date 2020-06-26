@@ -5,6 +5,7 @@
     "event-name-camelcase": "off",
     "const-name-snakecase": "off",
     "max-line-length": ["warn", 120],
-    "indent": ["error", 4]
+    "indent": ["error", 4],
+    "compiler-version": ["error","^0.6.0"]
   }
 }

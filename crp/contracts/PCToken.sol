@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.5.12;
+pragma solidity 0.6.6;
 
 // Imports
 
@@ -107,7 +107,7 @@ contract PCToken is IERC20 {
      * @param spender - entity allowed to spend the tokens
      * @return uint - remaining amount spender is allowed to transfer
      */
-    function allowance(address owner, address spender) external view returns (uint) {
+    function allowance(address owner, address spender) external view override returns (uint) {
         return _allowance[owner][spender];
     }
 
@@ -117,7 +117,7 @@ contract PCToken is IERC20 {
      * @param account - address we're checking the balance of
      * @return uint - token balance in the account
      */
-    function balanceOf(address account) external view returns (uint) {
+    function balanceOf(address account) external view override returns (uint) {
         return _balance[account];
     }
 
@@ -129,7 +129,7 @@ contract PCToken is IERC20 {
      * @param amount - number of tokens being approved
      * @return bool - result of the approval (will always be true if it doesn't revert)
      */
-    function approve(address spender, uint amount) external returns (bool) {
+    function approve(address spender, uint amount) external override returns (bool) {
         _allowance[msg.sender][spender] = amount;
 
         emit Approval(msg.sender, spender, amount);
@@ -182,7 +182,7 @@ contract PCToken is IERC20 {
      * @param amount - number of tokens being transferred
      * @return bool - result of the transfer (will always be true if it doesn't revert)
      */
-    function transfer(address recipient, uint amount) external returns (bool) {
+    function transfer(address recipient, uint amount) external override returns (bool) {
         _move(msg.sender, recipient, amount);
 
         return true;
@@ -197,7 +197,7 @@ contract PCToken is IERC20 {
      * @param amount - number of tokens being transferred
      * @return bool - result of the transfer (will always be true if it doesn't revert)
      */
-    function transferFrom(address sender, address recipient, uint amount) external returns (bool) {
+    function transferFrom(address sender, address recipient, uint amount) external override returns (bool) {
         require(msg.sender == sender || amount <= _allowance[sender][msg.sender], "ERR_PCTOKEN_BAD_CALLER");
 
         _move(sender, recipient, amount);
@@ -227,7 +227,7 @@ contract PCToken is IERC20 {
      * @dev override (add keyword in Solidity 0.6)
      * @return uint - total number of tokens in existence
      */
-    function totalSupply() public view returns (uint) {
+    function totalSupply() public view override returns (uint) {
         return _totalSupply;
     }
 
