@@ -118,9 +118,46 @@ library BalancerSafeMath {
      * @param divisor - second operand -- cannot be zero
      * @return - quotient; throws if overflow or rounding error
      */
-    function mod(uint dividend, uint divisor) internal pure returns (uint) {
+    function bmod(uint dividend, uint divisor) internal pure returns (uint) {
         require(divisor != 0, "ERR_MODULO_BY_ZERO");
 
         return dividend % divisor;
+    }
+
+    /**
+     * @notice Safe unsigned integer max
+     * @dev Returns the greater of the two input values
+     *
+     * @param a - first operand
+     * @param b - second operand
+     * @return - the maximum of a and b
+     */
+    function bmax(uint a, uint b) internal pure returns (uint) {
+        return a >= b ? a : b;
+    }
+
+    /**
+     * @notice Safe unsigned integer min
+     * @dev returns b, if b < a; otherwise returns a
+     *
+     * @param a - first operand
+     * @param b - second operand
+     * @return - the lesser of the two input values
+     */
+    function bmin(uint a, uint b) internal pure returns (uint) {
+        return a < b ? a : b;
+    }
+
+    /**
+     * @notice Safe unsigned integer average
+     * @dev Guard against (a+b) overflow by dividing each operand separately
+     *
+     * @param a - first operand
+     * @param b - second operand
+     * @return - the average of the two values
+     */
+    function baverage(uint a, uint b) internal pure returns (uint) {
+        // (a + b) / 2 can overflow, so we distribute
+        return (a / 2) + (b / 2) + ((a % 2 + b % 2) / 2);
     }
 }
