@@ -159,6 +159,33 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
     // External functions
 
     /**
+     * @notice Getter for the RightsManager contract
+     * @dev Convenience function to get the address of the RightsManager library (so clients can check version)
+     * @return address of the RightsManager library
+    */
+    function getRightsManagerVersion() external pure returns (address) {
+        return address(RightsManager);
+    }
+
+    /**
+     * @notice Getter for the BalancerSafeMath contract
+     * @dev Convenience function to get the address of the BalancerSafeMath library (so clients can check version)
+     * @return address of the BalancerSafeMath library
+    */
+    function getBalancerSafeMathVersion() external pure returns (address) {
+        return address(BalancerSafeMath);
+    }
+
+    /**
+     * @notice Getter for the SmartPoolManager contract
+     * @dev Convenience function to get the address of the SmartPoolManager library (so clients can check version)
+     * @return address of the SmartPoolManager library
+    */
+    function getSmartPoolManagerVersion() external pure returns (address) {
+        return address(SmartPoolManager);
+    }
+
+    /**
      * @notice Getter for specific permissions
      * @dev value of the enum is just the 0-based index in the enumeration
      *      For instance canPauseSwapping is 0; canChangeWeights is 2

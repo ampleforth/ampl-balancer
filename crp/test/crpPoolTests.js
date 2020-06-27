@@ -269,6 +269,27 @@ contract('crpPoolTests', async (accounts) => {
         assert.equal(bPoolDaiBalance, toWei(String(currentDaiBalance)));
     });
 
+    it('Should get the RightsManager address', async () => {
+        const rightsManager = await crpPool.getRightsManagerVersion();
+        assert.isTrue(rightsManager !== 0);
+
+        console.log(rightsManager);
+    });
+
+    it('Should get the BalancerSafeMath address', async () => {
+        const mathLibrary = await crpPool.getBalancerSafeMathVersion();
+        assert.isTrue(mathLibrary !== 0);
+
+        console.log(mathLibrary);
+    });
+
+    it('Should get the SmartPoolManager address', async () => {
+        const smartPoolManager = await crpPool.getSmartPoolManagerVersion();
+        assert.isTrue(smartPoolManager !== 0);
+
+        console.log(smartPoolManager);
+    });
+
     it('JoinPool should revert if user does not have allowance to join pool', async () => {
         await truffleAssert.reverts(
             crpPool.joinPool(toWei('1'), [MAX, MAX, MAX], { from: user1 }),
