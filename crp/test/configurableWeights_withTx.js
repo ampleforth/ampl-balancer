@@ -136,6 +136,10 @@ contract('CRPFactory', async (accounts) => {
                 const finalized = await underlyingPool.isFinalized();
                 assert.isFalse(finalized);
 
+                truffleAssert.reverts(
+                    underlyingPool.finalize(), 'ERR_NOT_CONTROLLER',
+                );
+
                 const numTokens = await underlyingPool.getNumTokens();
                 assert.equal(numTokens, 2);
 

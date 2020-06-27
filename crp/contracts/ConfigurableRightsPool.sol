@@ -236,7 +236,8 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
      * @dev If this smart pool has canPauseSwapping enabled, we can turn publicSwap off if it's already on
      *      Note that if they turn swapping off - but then finalize the pool - finalizing will turn the
      *      swapping back on. They're not supposed to finalize the underlying pool... would defeat the
-     *      smart pool functions. (Only the owner can finalize the final pool, at least.)
+     *      smart pool functions. (Only the owner can finalize the pool - which is this contract -
+     *      so there is no risk from outside.)
      * @param publicSwap new value of the swap
      */
     function setPublicSwap(bool publicSwap)
