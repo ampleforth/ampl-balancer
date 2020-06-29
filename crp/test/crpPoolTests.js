@@ -140,16 +140,6 @@ contract('crpPoolTests', async (accounts) => {
         bPool = await BPool.at(bPoolAddr);
     });
 
-    it('crpPool should have all rights set to true', async () => {
-        // const currentRights = await crpPool.getCurrentRights();
-        // assert.sameMembers(currentRights, [true, true, true, true]);
-        let x;
-        for (x = 0; x <= 3; x++) {
-            const perm = await crpPool.hasPermission(x);
-            assert.isTrue(perm);
-        }
-    });
-
     it('should not be able to createPool twice', async () => {
         await truffleAssert.reverts(
             crpPool.createPool(toWei('100')),

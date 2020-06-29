@@ -4,7 +4,7 @@ const CRPFactory = artifacts.require('CRPFactory');
 const TToken = artifacts.require('TToken');
 const truffleAssert = require('truffle-assertions');
 
-contract('CRPFactory', async (accounts) => {
+contract('configurableWeightsUMA', async (accounts) => {
     const admin = accounts[0];
     const { toWei } = web3.utils;
 

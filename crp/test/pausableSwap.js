@@ -4,11 +4,15 @@ const ConfigurableRightsPool = artifacts.require('ConfigurableRightsPool');
 const CRPFactory = artifacts.require('CRPFactory');
 const TToken = artifacts.require('TToken');
 const truffleAssert = require('truffle-assertions');
+const { calcOutGivenIn, calcInGivenOut, calcRelativeDiff } = require('../lib/calc_comparisons');
 
 contract('pausableSwap', async (accounts) => {
     const admin = accounts[0];
-    const { toWei } = web3.utils;
+    const user = accounts[1];
+
+    const { toWei, fromWei } = web3.utils;
     const MAX = web3.utils.toTwosComplement(-1);
+    const errorDelta = 10 ** -8;
 
     let crpFactory; let
         bFactory;
@@ -25,6 +29,9 @@ contract('pausableSwap', async (accounts) => {
     const startWeights = [toWei(startingXyzWeight), toWei(startingWethWeight), toWei(startingDaiWeight)];
     const startBalances = [toWei('80000'), toWei('40'), toWei('10000')];
     const SYMBOL = 'BSP';
+    let tokenIn;
+    let tokenOut;
+
     // const permissions = [true, false, false, false];
     const permissions = {
         canPauseSwapping: true,
@@ -53,10 +60,15 @@ contract('pausableSwap', async (accounts) => {
         DAI = dai.address;
         XYZ = xyz.address;
 
+        tokenIn = WETH;
+        tokenOut = DAI;
+
         // admin balances
         await weth.mint(admin, toWei('100'));
         await dai.mint(admin, toWei('15000'));
         await xyz.mint(admin, toWei('100000'));
+
+        await weth.mint(user, toWei('10'));
 
         const tokenAddresses = [XYZ, WETH, DAI];
 
@@ -117,7 +129,7 @@ contract('pausableSwap', async (accounts) => {
 
     it('Set public swap should revert for non-controller', async () => {
         await truffleAssert.reverts(
-            crpPool.setPublicSwap(false, { from: accounts[1] }),
+            crpPool.setPublicSwap(false, { from: user }),
             'ERR_NOT_CONTROLLER',
         );
     });
@@ -136,8 +148,33 @@ contract('pausableSwap', async (accounts) => {
 
     it('Non-controller should not be able to restart trades', async () => {
         await truffleAssert.reverts(
-            crpPool.setPublicSwap(true, { from: accounts[1] }),
+            crpPool.setPublicSwap(true, { from: user }),
             'ERR_NOT_CONTROLLER',
+        );
+    });
+
+    it('Should not allow swaps while paused', async () => {
+        const bPoolAddr = await crpPool.bPool();
+        const bPool = await BPool.at(bPoolAddr);
+
+        await truffleAssert.reverts(
+            bPool.swapExactAmountIn(
+                DAI, toWei('500'),
+                WETH, toWei('0'),
+                MAX,
+                { from: user },
+            ),
+            'ERR_SWAP_NOT_PUBLIC',
+        );
+
+        await truffleAssert.reverts(
+            bPool.swapExactAmountOut(
+                DAI, MAX,
+                WETH, toWei('1'),
+                MAX,
+                { from: user },
+            ),
+            'ERR_SWAP_NOT_PUBLIC',
         );
     });
 
@@ -151,6 +188,72 @@ contract('pausableSwap', async (accounts) => {
         assert.equal(isPublicSwap, true);
         const isPublicSwapCheck = await bPool.isPublicSwap.call();
         assert.equal(isPublicSwapCheck, true);
+    });
+
+    it('Should allow swap in now', async () => {
+        const bPoolAddr = await crpPool.bPool();
+        const bPool = await BPool.at(bPoolAddr);
+
+        await weth.approve(bPool.address, MAX, { from: user });
+
+        const tokenInBalance = await weth.balanceOf.call(bPool.address);
+        const tokenInWeight = await bPool.getDenormalizedWeight(WETH);
+        const tokenOutBalance = await dai.balanceOf.call(bPool.address);
+        const tokenOutWeight = await bPool.getDenormalizedWeight(DAI);
+
+        const expectedTotalOut = calcOutGivenIn(
+            fromWei(tokenInBalance),
+            fromWei(tokenInWeight),
+            fromWei(tokenOutBalance),
+            fromWei(tokenOutWeight),
+            '5',
+            '0.001',
+        );
+
+        // Actually returns an array of tokenAmountOut, spotPriceAfter
+        const tokenAmountOut = await bPool.swapExactAmountIn.call(
+            tokenIn,
+            toWei('5'), // tokenAmountIn
+            tokenOut,
+            toWei('0'), // minAmountOut
+            MAX,
+            { from: user },
+        );
+        const relDif = calcRelativeDiff(expectedTotalOut, fromWei(tokenAmountOut[0]));
+        assert.isAtMost(relDif.toNumber(), errorDelta);
+    });
+
+    it('Should now allow swap outs', async () => {
+        const bPoolAddr = await crpPool.bPool();
+        const bPool = await BPool.at(bPoolAddr);
+
+        await weth.approve(bPool.address, MAX, { from: user });
+
+        const tokenInBalance = await weth.balanceOf.call(bPool.address); // 40
+        const tokenInWeight = await bPool.getDenormalizedWeight(WETH); // 1.5
+        const tokenOutBalance = await dai.balanceOf.call(bPool.address); // 10000
+        const tokenOutWeight = await bPool.getDenormalizedWeight(DAI); // 1.5
+
+        const expectedTotalIn = calcInGivenOut(
+            fromWei(tokenInBalance),
+            fromWei(tokenInWeight),
+            fromWei(tokenOutBalance),
+            fromWei(tokenOutWeight),
+            '100',
+            '0.001',
+        );
+
+        // Actually returns an array of tokenAmountIn, spotPriceAfter
+        const tokenAmountIn = await bPool.swapExactAmountOut.call(
+            tokenIn,
+            MAX, // maxAmountIn
+            tokenOut,
+            toWei('100'), // tokenAmountOut
+            MAX, // maxPrice
+            { from: user },
+        );
+        const relDif = calcRelativeDiff(expectedTotalIn, fromWei(tokenAmountIn[0]));
+        assert.isAtMost(relDif.toNumber(), errorDelta);
     });
 
     it('Controller should not be able to change swapFee', async () => {

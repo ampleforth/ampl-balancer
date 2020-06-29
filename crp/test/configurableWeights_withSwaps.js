@@ -4,15 +4,19 @@ const ConfigurableRightsPool = artifacts.require('ConfigurableRightsPool');
 const CRPFactory = artifacts.require('CRPFactory');
 const TToken = artifacts.require('TToken');
 const truffleAssert = require('truffle-assertions');
+const { calcOutGivenIn, calcRelativeDiff } = require('../lib/calc_comparisons');
 
-contract('configurableWeights_withTx', async (accounts) => {
+
+contract('configurableWeights_withSwaps', async (accounts) => {
     const admin = accounts[0];
     const user1 = accounts[1];
     const user2 = accounts[2];
 
-    const { toWei } = web3.utils;
+    const { toWei, fromWei } = web3.utils;
 
     const MAX = web3.utils.toTwosComplement(-1);
+    const errorDelta = 10 ** -8;
+
     const SYMBOL = 'BSP';
     const permissions = {
         canPauseSwapping: false,
@@ -96,7 +100,7 @@ contract('configurableWeights_withTx', async (accounts) => {
             await controller.createPool(toWei('100'));
         });
 
-        describe('configurableWeights / Tx', () => {
+        describe('configurableWeights / Swaps', () => {
             it('Controller should be able to call updateWeightsGradually() with valid range', async () => {
                 blockRange = 20;
                 // get current block number
@@ -124,7 +128,6 @@ contract('configurableWeights_withTx', async (accounts) => {
                 let weightXYZ;
                 let weightWETH;
                 let block;
-                const poolAmountOut1 = '1';
                 const bPoolAddr = await controller.bPool();
                 const underlyingPool = await BPool.at(bPoolAddr);
 
@@ -147,12 +150,21 @@ contract('configurableWeights_withTx', async (accounts) => {
                 assert.equal(poolTokens[0], XYZ);
                 assert.equal(poolTokens[1], WETH);
 
-                let xyzBalance;
-                let wethBalance;
-                let xyzSpotPrice;
-                let lastXyzPrice;
-                let wethSpotPrice;
-                let lastWethPrice;
+                // Enable swaps
+                await xyz.approve(underlyingPool.address, MAX, { from: user1 });
+                await weth.approve(underlyingPool.address, MAX, { from: user1 });
+                let tokenIn;
+                let tokenOut;
+                let tokenInBalance;
+                let tokenInWeight;
+                let tokenOutBalance;
+                let tokenOutWeight;
+                let expectedTotalOut;
+                let tokenAmountOut;
+                let relDif;
+                let swapAmount;
+
+                const poolSwapFee = await underlyingPool.getSwapFee();
 
                 for (i = 0; i < blockRange + 10; i++) {
                     weightXYZ = await controller.getDenormalizedWeight(XYZ);
@@ -163,31 +175,72 @@ contract('configurableWeights_withTx', async (accounts) => {
                         (weightWETH*2.5/10**18).toString() + '%');
                     await controller.pokeWeights();
 
-                    // Balances should not change
-                    xyzBalance = await underlyingPool.getBalance(XYZ);
-                    wethBalance = await underlyingPool.getBalance(WETH);
+                    // Swap back and forth
 
-                    assert.equal(xyzBalance, startBalances[0]);
-                    assert.equal(wethBalance, startBalances[1]);
+                    if (i % 2 === 0) {
+                        swapAmount = Math.floor((Math.random() * 10) + 1).toString();
+                        console.log(`Swapping ${swapAmount} XYZ for WETH`);
 
-                    if (lastXyzPrice) {
-                        xyzSpotPrice = await underlyingPool.getSpotPrice(XYZ, WETH);
-                        wethSpotPrice = await underlyingPool.getSpotPrice(WETH, XYZ);
+                        tokenIn = XYZ;
+                        tokenOut = WETH;
 
-                        // xyz price should be going up; weth price should be going down
-                        assert.isTrue(xyzSpotPrice <= lastXyzPrice);
-                        assert.isTrue(wethSpotPrice >= lastWethPrice);
+                        tokenInBalance = await xyz.balanceOf.call(underlyingPool.address);
+                        tokenInWeight = await underlyingPool.getDenormalizedWeight(XYZ);
+                        tokenOutBalance = await weth.balanceOf.call(underlyingPool.address);
+                        tokenOutWeight = await underlyingPool.getDenormalizedWeight(WETH);
 
-                        lastXyzPrice = xyzSpotPrice;
-                        lastWethPrice = wethSpotPrice;
-                    }
-
-                    if (i === 5) {
-                        // Random user tries to join underlying pool (cannot - not finalized)
-                        truffleAssert.reverts(
-                            underlyingPool.joinPool(toWei(poolAmountOut1), [MAX, MAX, MAX], { from: user1 }),
-                            'ERR_NOT_FINALIZED',
+                        expectedTotalOut = calcOutGivenIn(
+                            fromWei(tokenInBalance),
+                            fromWei(tokenInWeight),
+                            fromWei(tokenOutBalance),
+                            fromWei(tokenOutWeight),
+                            swapAmount,
+                            fromWei(poolSwapFee),
                         );
+
+                        tokenAmountOut = await underlyingPool.swapExactAmountIn.call(
+                            tokenIn,
+                            toWei(swapAmount), // tokenAmountIn
+                            tokenOut,
+                            toWei('0'), // minAmountOut
+                            MAX,
+                            { from: user1 },
+                        );
+
+                        relDif = calcRelativeDiff(expectedTotalOut, fromWei(tokenAmountOut[0]));
+                        assert.isAtMost(relDif.toNumber(), errorDelta);
+                    } else {
+                        swapAmount = Math.floor((Math.random() * 10) + 1).toString();
+                        console.log(`Swapping ${swapAmount} WETH for XYZ`);
+
+                        tokenIn = WETH;
+                        tokenOut = XYZ;
+
+                        tokenInBalance = await weth.balanceOf.call(underlyingPool.address);
+                        tokenInWeight = await underlyingPool.getDenormalizedWeight(WETH);
+                        tokenOutBalance = await xyz.balanceOf.call(underlyingPool.address);
+                        tokenOutWeight = await underlyingPool.getDenormalizedWeight(XYZ);
+
+                        expectedTotalOut = calcOutGivenIn(
+                            fromWei(tokenInBalance),
+                            fromWei(tokenInWeight),
+                            fromWei(tokenOutBalance),
+                            fromWei(tokenOutWeight),
+                            swapAmount,
+                            fromWei(poolSwapFee),
+                        );
+
+                        tokenAmountOut = await underlyingPool.swapExactAmountIn.call(
+                            tokenIn,
+                            toWei(swapAmount), // tokenAmountIn
+                            tokenOut,
+                            toWei('0'), // minAmountOut
+                            MAX,
+                            { from: user1 },
+                        );
+
+                        relDif = calcRelativeDiff(expectedTotalOut, fromWei(tokenAmountOut[0]));
+                        assert.isAtMost(relDif.toNumber(), errorDelta);
                     }
                 }
             });
