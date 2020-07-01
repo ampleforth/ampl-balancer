@@ -30,6 +30,7 @@ import "../libraries/BalancerSafeMath.sol";
  *      1: canChangeSwapFee - can setSwapFee after initialization (by default, it is fixed at create time)
  *      2: canChangeWeights - can bind new token weights (allowed by default in base pool)
  *      3: canAddRemoveTokens - can bind/unbind tokens (allowed by default in base pool)
+ *      4: canWhitelistLPs - can restrict LPs to a whitelist
  */
 contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyGuard {
     using BalancerSafeMath for uint;
