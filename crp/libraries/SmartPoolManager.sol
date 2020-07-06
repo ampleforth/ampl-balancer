@@ -40,6 +40,31 @@ library SmartPoolManager {
     uint public constant MAX_IN_RATIO = BONE / 2;
     uint public constant MAX_OUT_RATIO = (BONE / 3) + 1 wei;
 
+    // RFC: A version of gulp which doesn't alter price
+    function resyncWeight(
+        ConfigurableRightsPool self,
+        IBPool bPool,
+        address token
+    )
+        external
+    {
+        uint currentBalance = bPool.getBalance(token);
+        bPool.gulp(token);
+        uint updatedBalance = bPool.getBalance(token);
+
+        if(updatedBalance == currentBalance) {
+            return;
+        }
+
+        uint currentWeight = bPool.getDenormalizedWeight(token);
+        uint newWeight = BalancerSafeMath.bdiv(
+            BalancerSafeMath.bmul(currentWeight, updatedBalance),
+            currentBalance
+        );
+
+        bPool.rebind(token, updatedBalance, newWeight);
+    }
+
     /**
      * @notice Update the weight of an existing token
      * @dev Refactored to library to make CRPFactory deployable

@@ -37,10 +37,10 @@ contract('configurableWeights', async (accounts) => {
         bFactory;
     let crpPool;
     let CRPPOOL;
-    let WETH; let DAI; let XYZ; let
-        ABC;
-    let weth; let dai; let xyz; let
-        abc;
+    let WETH; let DAI; let XYZ; let ABC; let
+        USDC;
+    let weth; let dai; let xyz; let abc; let
+        usdc;
 
     // These are the intial settings for newCrp:
     const swapFee = 10 ** 15;
@@ -246,6 +246,87 @@ contract('configurableWeights', async (accounts) => {
                 crpPool.updateWeight(ABC, toWei('4.5')),
                 'ERR_NOT_BOUND',
             );
+        });
+    });
+
+    describe('resyncWeight', () => {
+        beforeEach(async () => {
+            bFactory = await BFactory.deployed();
+            crpFactory = await CRPFactory.deployed();
+
+            usdc = await TToken.new('USD Stablecoin', 'USDC', 18);
+            dai = await TToken.new('Dai Stablecoin', 'DAI', 18);
+
+            USDC = usdc.address;
+            DAI = dai.address;
+
+            // admin balances
+            await dai.mint(admin, toWei('15000'));
+            await usdc.mint(admin, toWei('15000'));
+
+            const tokenAddresses = [USDC, DAI];
+            let startBalances = [toWei('10000'), toWei('10000')];
+            let startWeights = [toWei('1'), toWei('1')];
+            let SYMBOL = 'BAL-USDC-DAI';
+
+            CRPPOOL = await crpFactory.newCrp.call(
+                bFactory.address,
+                SYMBOL,
+                tokenAddresses,
+                startBalances,
+                startWeights,
+                swapFee,
+                permissions,
+            );
+
+            await crpFactory.newCrp(
+                bFactory.address,
+                SYMBOL,
+                tokenAddresses,
+                startBalances,
+                startWeights,
+                swapFee,
+                permissions,
+            );
+
+            crpPool = await ConfigurableRightsPool.at(CRPPOOL);
+            const CRPPOOL_ADDRESS = crpPool.address;
+            await usdc.approve(CRPPOOL_ADDRESS, MAX);
+            await dai.approve(CRPPOOL_ADDRESS, MAX);
+
+            await crpPool.createPool(toWei('100'));
+        });
+
+        it('resync weights should gulp and not move price', async () => {
+            const bPoolAddr = await crpPool.bPool();
+            const bPool = await BPool.at(bPoolAddr);
+
+            // both pools are out of balance
+            // calling gulp after transfer will move the price
+            await dai.transfer(bPoolAddr, toWei('1000'));
+
+            // resync weights, safely calls gulp and adjusts weights
+            // proportionally so that price does not move
+            const spotPriceBefore = await bPool.getSpotPrice.call(dai.address, usdc.address);
+            const usdcWeightBefore = await bPool.getDenormalizedWeight.call(usdc.address);
+            const daiWeightBefore = await bPool.getDenormalizedWeight.call(dai.address);
+            const totalWeightBefore = await bPool.getTotalDenormalizedWeight.call();
+
+            await crpPool.resyncWeight(dai.address);
+
+            const spotPriceAfter = await bPool.getSpotPrice.call(dai.address, usdc.address);
+            const usdcWeightAfter = await bPool.getDenormalizedWeight.call(usdc.address);
+            const daiWeightAfter = await bPool.getDenormalizedWeight.call(dai.address);
+            const totalWeightAfter = await bPool.getTotalDenormalizedWeight.call();
+
+            assert.equal(spotPriceBefore.toString(), spotPriceAfter.toString());
+            assert.equal(usdcWeightBefore.toString(), usdcWeightAfter.toString());
+
+            assert.equal(daiWeightBefore, toWei('1'));
+            assert.equal(daiWeightAfter, toWei('1.1'));
+
+            assert.equal(totalWeightBefore, toWei('2'));
+            assert.equal(totalWeightAfter, toWei('2.1'));
         });
     });
 

@@ -399,6 +399,20 @@ contract ConfigurableRightsPool is PCToken, BalancerOwnable, BalancerReentrancyG
         _pushPoolShare(msg.sender, initialSupply);
     }
 
+    function resyncWeight(address token)
+        external
+        _logs_
+        _lock_
+        _onlyOwner_
+        _needsBPool_
+    {
+        require(_rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
+
+        require(_startBlock == 0, "ERR_NO_UPDATE_DURING_GRADUAL");
+
+        SmartPoolManager.resyncWeight(this, bPool, token);
+    }
+
     /**
      * @notice Update the weight of an existing token
      * @dev Notice Balance is not an input (like with rebind on BPool) since we will require prices not to change
