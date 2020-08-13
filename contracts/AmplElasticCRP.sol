@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 
 // Imports
 import "configurable-rights-pool/contracts/ConfigurableRightsPool.sol";
+import "./Math.sol";
 
 /**
  * @author Ampleforth engineering team & Balancer Labs
@@ -17,19 +18,21 @@ import "configurable-rights-pool/contracts/ConfigurableRightsPool.sol";
  * @dev   Extension of Balancer labs' configurable rights pool (smart-pool).
  *        Amples are a dynamic supply tokens, supply and individual balances change daily by a Rebase operation.
  *        In constant-function markets, Ampleforth's rebases result in Impermanent Loss (IL) liquidity providers.
- *        The AmplElasticCRP is an extension of Balancer Lab's ConfigurableRightsPool which eliminates all IL
+ *        The AmplElasticCRP is an extension of Balancer Lab's ConfigurableRightsPool which mitigates IL
  *        induced by supply changes.
  *
  *        It accomplishes this by doing the following mechanism:
  *        The `resyncWeight` method will be invoked atomically after rebase through Ampleforth's orchestrator.
- *        1) When Ample expands and the pool's Ample balance is detected to increase by +x% after rebase,
- *           Ample pool's weight is increased by +x%.
- *        2) When Ample contracts and the pool's Ample balance is detected to decrease by -x% after rebase,
- *           Ample pool's weight is decreased by -x%.
- *        3) When the pool's Ample balance doesn't change, the pool's weight is unaltered.
  *
- *        These proportional weight adjustments keep the price of Amples in the underlying BPool
- *        unaffected by rebase, thus prevent arbitrageurs from extracting value away from liquidity providers.
+ *        Weights: {w_ampl, w_t1 ... w_tn}
+ *
+ *        Rebase_change: +/- x% (Ample's supply expands or contracts by x%)
+ *
+ *        Ample target weight: w_ampl_target = (1+x)/100 * w_ampl
+ *
+ *        w_ampl_new = sqrt(w_ampl, w_ampl_target)  // geometric mean
+ *        for i in tn:
+ *           w_ti_new = (w_ampl_new * w_ti) / w_ampl_target
  *
  */
 contract AmplElasticCRP is ConfigurableRightsPool {
@@ -85,13 +88,45 @@ contract AmplElasticCRP is ConfigurableRightsPool {
             return;
         }
 
-        uint weightBefore = IBPool(address(bPool)).getDenormalizedWeight(token);
+        // current token weight
+        uint tokenWeightBefore = IBPool(address(bPool)).getDenormalizedWeight(token);
 
-        uint weightAfter = BalancerSafeMath.bdiv(
-            BalancerSafeMath.bmul(weightBefore, tokenBalanceAfter),
+        // target token weight = RebaseRatio * previous token weight
+        uint tokenWeightTarget = BalancerSafeMath.bdiv(
+            BalancerSafeMath.bmul(tokenWeightBefore, tokenBalanceAfter),
             tokenBalanceBefore
         );
 
-        IBPool(address(bPool)).rebind(token, tokenBalanceAfter, weightAfter);
+        // new token weight = sqrt(current token weight, target token weight)
+        uint tokenWeightAfter = Math.sqrt(
+            BalancerSafeMath.bdiv(
+                BalancerSafeMath.bmul(tokenWeightBefore, tokenWeightTarget),
+                1
+            )
+        );
+
+
+        address[] memory tokens = IBPool(address(bPool)).getCurrentTokens();
+        for(uint i=0; i<tokens.length; i++){
+            if(tokens[i] == token) {
+
+                // adjust weight
+                IBPool(address(bPool)).rebind(token, tokenBalanceAfter, tokenWeightAfter);
+
+            } else {
+
+                uint otherWeightBefore = IBPool(address(bPool)).getDenormalizedWeight(tokens[i]);
+                uint otherBalance = bPool.getBalance(tokens[i]);
+
+                // other token weight = (other token weight before * new token weight) / target token weight
+                uint otherWeightAfter = BalancerSafeMath.bdiv(
+                    BalancerSafeMath.bmul(tokenWeightAfter, otherWeightBefore),
+                    tokenWeightTarget
+                );
+
+                // adjust weight
+                IBPool(address(bPool)).rebind(tokens[i], otherBalance, otherWeightAfter);
+            }
+        }
     }
 }
