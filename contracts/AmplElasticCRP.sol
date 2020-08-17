@@ -26,7 +26,7 @@ import "./Math.sol";
  *
  *        Weights: {w_ampl, w_t1 ... w_tn}
  *
- *        Rebase_change: +/- x% (Ample's supply expands or contracts by x%)
+ *        Rebase_change: x% (Ample's supply changes by x%, can be positive or negative)
  *
  *        Ample target weight: w_ampl_target = (1+x)/100 * w_ampl
  *
