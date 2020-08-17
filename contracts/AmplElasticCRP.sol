@@ -97,7 +97,7 @@ contract AmplElasticCRP is ConfigurableRightsPool {
             tokenBalanceBefore
         );
 
-        // new token weight = sqrt(current token weight, target token weight)
+        // new token weight = sqrt(current token weight * target token weight)
         uint tokenWeightAfter = Math.sqrt(
             BalancerSafeMath.bdiv(
                 BalancerSafeMath.bmul(tokenWeightBefore, tokenWeightTarget),
