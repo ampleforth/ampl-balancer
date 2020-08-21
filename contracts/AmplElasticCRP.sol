@@ -32,7 +32,7 @@ import "./Math.sol";
  *
  *        Rebase_change: x% (Ample's supply changes by x%, can be positive or negative)
  *
- *        Ample target weight: w_ampl_target = (1+x)/100 * w_ampl
+ *        Ample target weight: w_ampl_target = (100+x)/100 * w_ampl
  *
  *        w_ampl_new = sqrt(w_ampl, w_ampl_target)  // geometric mean
  *        for i in tn:
