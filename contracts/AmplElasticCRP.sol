@@ -40,6 +40,14 @@ import "./Math.sol";
  *
  */
 contract AmplElasticCRP is ConfigurableRightsPool {
+
+    // Constants as used by the underlying BPool /balancer-core/BConst.sol
+    uint public constant BONE              = 10**18;
+    uint public constant MIN_WEIGHT        = BONE;
+    uint public constant MAX_WEIGHT        = BONE * 50;
+    uint public constant MAX_TOTAL_WEIGHT  = BONE * 50;
+
+
     constructor(
         address factoryAddress,
         string memory tokenSymbolString,
@@ -49,8 +57,9 @@ contract AmplElasticCRP is ConfigurableRightsPool {
         uint swapFee,
         RightsManager.Rights memory rights
     )
-    public
-    ConfigurableRightsPool(factoryAddress, tokenSymbolString, tokens, startBalances, startWeights, swapFee, rights) {
+        public
+        ConfigurableRightsPool(factoryAddress, tokenSymbolString, tokens, startBalances, startWeights, swapFee, rights)
+    {
 
         require(rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
 
@@ -101,7 +110,7 @@ contract AmplElasticCRP is ConfigurableRightsPool {
             tokenBalanceBefore
         );
 
-        // new token weight = sqrt(current token weight * target token weight)
+        // token weight after = sqrt(current token weight * target token weight)
         uint tokenWeightAfter = Math.sqrt(
             BalancerSafeMath.bdiv(
                 BalancerSafeMath.bmul(tokenWeightBefore, tokenWeightTarget),
@@ -109,28 +118,52 @@ contract AmplElasticCRP is ConfigurableRightsPool {
             )
         );
 
-
         address[] memory tokens = IBPool(address(bPool)).getCurrentTokens();
+
+        bool success = true;
+        uint weightsTotalAfter = 0;
+        uint[] memory balancesAfter = new uint[](tokens.length);
+        uint[] memory weightsAfter = new uint[](tokens.length);
+
+        // calculate new weights
         for(uint i=0; i<tokens.length; i++){
             if(tokens[i] == token) {
 
-                // adjust weight
-                IBPool(address(bPool)).rebind(token, tokenBalanceAfter, tokenWeightAfter);
+                balancesAfter[i] = tokenBalanceAfter;
+
+                weightsAfter[i] = tokenWeightAfter;
 
             } else {
 
-                uint otherWeightBefore = IBPool(address(bPool)).getDenormalizedWeight(tokens[i]);
-                uint otherBalance = bPool.getBalance(tokens[i]);
+                balancesAfter[i] = bPool.getBalance(tokens[i]);
 
-                // other token weight = (new token weight * other token weight before) / target token weight
-                uint otherWeightAfter = BalancerSafeMath.bdiv(
+                uint otherWeightBefore = IBPool(address(bPool)).getDenormalizedWeight(tokens[i]);
+
+                // other token weight = (token weight after * other token weight before) / target token weight
+                weightsAfter[i] = BalancerSafeMath.bdiv(
                     BalancerSafeMath.bmul(tokenWeightAfter, otherWeightBefore),
                     tokenWeightTarget
                 );
-
-                // adjust weight
-                IBPool(address(bPool)).rebind(tokens[i], otherBalance, otherWeightAfter);
             }
+
+            weightsTotalAfter += weightsAfter[i];
+
+            success = success && (
+                weightsAfter[i] > MIN_WEIGHT &&
+                weightsAfter[i] < MAX_WEIGHT
+            );
+        }
+
+        success = success && (
+            weightsTotalAfter < MAX_TOTAL_WEIGHT
+        );
+
+        if(!success) {
+            return;
+        }
+
+        for(uint i=0; i<tokens.length; i++){
+            IBPool(address(bPool)).rebind(tokens[i], balancesAfter[i], weightsAfter[i]);
         }
     }
 }

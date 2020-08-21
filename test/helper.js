@@ -2,7 +2,7 @@ const { BigNumber } = require('bignumber.js');
 const { BN } = require('@openzeppelin/test-helpers');
 const { web3, contract } = require('@openzeppelin/test-environment');
 const { expect } = require('chai');
-// const mlog = require('mocha-logger');
+const mlog = require('mocha-logger');
 
 const AmpleforthErc20 = contract.fromArtifact('uFragments/UFragments');
 const RightsManager = contract.fromArtifact('configurable-rights-pool/RightsManager');
@@ -157,7 +157,8 @@ async function performRebaseResyncAndCheck (contracts, rebasePerc, weightsBefore
     const {crpPool, ampl} = contracts;
     const _weights = await getPoolWeights(contracts);
     await invokeRebase(ampl, rebasePerc);
-    await crpPool.resyncWeight(ampl.address);
+    const tx = await crpPool.resyncWeight(ampl.address);
+    mlog.log('Gas:', tx.receipt.gasUsed);
     const weights = await getPoolWeights(contracts);
     const round = new BN(1e9);
     const rebaseFactor = new BN((100 + rebasePerc) * 1e7);

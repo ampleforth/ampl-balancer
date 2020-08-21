@@ -55,11 +55,7 @@ describe('when weights go out of bounds', function () {
 
         const _p = await bPool.getSpotPrice.call(ampl.address, stableCoin.address);
         await invokeRebase(ampl, +10.0);
-        await expectRevert(
-          crpPool.resyncWeight(ampl.address), // resync operation fails here
-          'ERR_MAX_TOTAL_WEIGHT'
-        );
-        await bPool.gulp(ampl.address);
+        await crpPool.resyncWeight(ampl.address);
         const p = await bPool.getSpotPrice.call(ampl.address, stableCoin.address);
         expect(_p).to.be.bignumber.not.equal(p); // price is out of sync now
 
