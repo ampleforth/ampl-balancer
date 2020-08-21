@@ -24,6 +24,10 @@ import "./Math.sol";
  *        It accomplishes this by doing the following mechanism:
  *        The `resyncWeight` method will be invoked atomically after rebase through Ampleforth's orchestrator.
  *
+ *        When rebase changes supply, ampl weight is updated to the geometric mean of
+ *        the current ampl weight and the target. Every other token's weight is updated
+ *        proportionally such that relative ratios are same.
+ *
  *        Weights: {w_ampl, w_t1 ... w_tn}
  *
  *        Rebase_change: x% (Ample's supply changes by x%, can be positive or negative)
@@ -46,7 +50,11 @@ contract AmplElasticCRP is ConfigurableRightsPool {
         RightsManager.Rights memory rights
     )
     public
-    ConfigurableRightsPool(factoryAddress, tokenSymbolString, tokens, startBalances, startWeights, swapFee, rights) { }
+    ConfigurableRightsPool(factoryAddress, tokenSymbolString, tokens, startBalances, startWeights, swapFee, rights) {
+
+        require(rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
+
+    }
 
     /*
      * @param token The address of the token in the underlying BPool to be weight adjusted.
@@ -61,10 +69,6 @@ contract AmplElasticCRP is ConfigurableRightsPool {
         lock
         needsBPool
     {
-
-        require(
-            this.hasPermission(RightsManager.Permissions.CHANGE_WEIGHTS),
-            "ERR_NOT_CONFIGURABLE_WEIGHTS");
 
         require(
             ConfigurableRightsPool.getStartBlock() == 0,
@@ -118,7 +122,7 @@ contract AmplElasticCRP is ConfigurableRightsPool {
                 uint otherWeightBefore = IBPool(address(bPool)).getDenormalizedWeight(tokens[i]);
                 uint otherBalance = bPool.getBalance(tokens[i]);
 
-                // other token weight = (other token weight before * new token weight) / target token weight
+                // other token weight = (new token weight * other token weight before) / target token weight
                 uint otherWeightAfter = BalancerSafeMath.bdiv(
                     BalancerSafeMath.bmul(tokenWeightAfter, otherWeightBefore),
                     tokenWeightTarget
