@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 PROJECT_DIR=$DIR/../
-SOLVERSION=0.5.0
+SOLVERSION=0.6.12
 
 export OPENZEPPELIN_NON_INTERACTIVE=true
 
@@ -12,11 +12,18 @@ fi
 rm -rf $PROJECT_DIR/build
 mkdir -p $PROJECT_DIR/build/contracts
 
-echo "-----Compiling project"
-$PROJECT_DIR/node_modules/.bin/oz compile --solc-version $SOLVERSION
+echo "-----Compiling smart-pools"
+# TODO: update the evm and solc version config (`constantinople`)
+# to what is used by the most recent version of the smart-pools project
+cd $PROJECT_DIR/node_modules/configurable-rights-pool
+$PROJECT_DIR/node_modules/.bin/oz compile --solc-version $SOLVERSION \
+  --optimizer on --optimizer-runs 1 --evm-version byzantium
 
 echo "-----Compiling UFragments contract"
 cd $PROJECT_DIR/node_modules/uFragments
 $PROJECT_DIR/node_modules/.bin/oz compile --solc-version 0.4.24
+
+echo "-----Compiling project"
 cd $PROJECT_DIR
-cp $PROJECT_DIR/node_modules/uFragments/build/contracts/UFragments.json $PROJECT_DIR/build/contracts/
+$PROJECT_DIR/node_modules/.bin/oz compile --solc-version $SOLVERSION \
+  --optimizer on --optimizer-runs 1 --evm-version byzantium

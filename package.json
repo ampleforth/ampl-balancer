@@ -24,7 +24,7 @@
     ]
   },
   "dependencies": {
-    "openzeppelin-solidity": "2.4.0"
+    "configurable-rights-pool": "git+ssh://git@github.com:balancer-labs/configurable-rights-pool.git#develop"
   },
   "devDependencies": {
     "@openzeppelin/cli": "^2.6.0",
@@ -32,6 +32,7 @@
     "@openzeppelin/test-environment": "^0.1.2",
     "@openzeppelin/test-helpers": "^0.5.4",
     "ajv": "^5.0.0",
+    "bignumber.js": "^9.0.0",
     "chai": "^4.2.0",
     "eslint": "^4.19.1",
     "eslint-config-google": "^0.9.1",
@@ -49,10 +50,11 @@
     "ganache-core-coverage": "https://github.com/OpenZeppelin/ganache-core-coverage/releases/download/2.5.3-coverage/ganache-core-coverage-2.5.3.tgz",
     "husky": "^4.2.5",
     "mocha": "^8.0.1",
+    "mocha-logger": "^1.0.6",
     "openzeppelin-eth": "2.0.2",
+    "openzeppelin-solidity": "2.4.0",
     "pre-commit": "^1.2.2",
     "prettier": "^1.12.1",
-    "smart-pools": "https://37ad1def588644afc0885e96a302687404b0ce51@github.com/ampleforth/smart-pools.git#master",
     "solhint": "^2.0.0",
     "uFragments": "https://github.com/ampleforth/uFragments.git#v1.0.2",
     "zos-lib": "^2.0.0"
