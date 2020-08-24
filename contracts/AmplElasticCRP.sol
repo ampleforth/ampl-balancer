@@ -42,15 +42,11 @@ import "./Math.sol";
 contract AmplElasticCRP is ConfigurableRightsPool {
     constructor(
         address factoryAddress,
-        string memory tokenSymbolString,
-        address[] memory tokens,
-        uint[] memory startBalances,
-        uint[] memory startWeights,
-        uint swapFee,
-        RightsManager.Rights memory rights
+        PoolParams memory poolParams,
+        RightsManager.Rights memory rightsStruct
     )
     public
-    ConfigurableRightsPool(factoryAddress, tokenSymbolString, tokens, startBalances, startWeights, swapFee, rights) {
+    ConfigurableRightsPool(factoryAddress, poolParams, rightsStruct) {
 
         require(rights.canChangeWeights, "ERR_NOT_CONFIGURABLE_WEIGHTS");
 
