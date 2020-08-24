@@ -24,6 +24,16 @@ function weight (p) {
   return toFixedPt(p, 18);
 }
 
+function aproxCheck (c1, c2, accuracy = new BN(1e8)) {
+  // accuracy=1e8 = 0.000005%
+  const uBound = accuracy.add(new BN(5));
+  const lBound = accuracy.sub(new BN(5));
+  const b = c1.mul(accuracy).div(c2).toString();
+  // mlog.log(`c1:${c1.toString()}::c2:${c2.toString()}::${b.toString()}`);
+  expect(b).to.be.bignumber.gte(lBound);
+  expect(b).to.be.bignumber.lte(uBound);
+}
+
 async function invokeRebase (ampl, perc) {
   const ordinate = new BigNumber(10 ** 18);
   const p_ = ordinate.multipliedBy(perc).dividedBy(100);
@@ -87,14 +97,22 @@ async function setupPairElasticCrp (
 }
 
 async function checkPoolWeights (contracts, weights) {
-  const {crpPool, tokenAddresses} = contracts;
+  const _weights = await getPoolWeights(contracts);
+  for (let i = 0; i < weights.length; i++) {
+    const w2 = weight(weights[i]);
+    // mlog.log(`w1:${_weights[i].toString()}::w2:${w2.toString()}`);
+    expect(_weights[i]).to.be.bignumber.equal(w2);
+  }
+}
 
+async function getPoolWeights (contracts) {
+  const {crpPool, tokenAddresses} = contracts;
+  const weights = [ ];
   for (let t = 0; t < tokenAddresses.length; t++) {
     const wt = await crpPool.getDenormalizedWeight.call(tokenAddresses[t]);
-    const wc = weight(weights[t]);
-    // mlog.log(`expected ${wc.toString()} : got ${wt.toString()}`);
-    expect(wt).to.be.bignumber.equal(wc);
+    weights.push(wt);
   }
+  return weights;
 }
 
 async function getAllPoolRelativePrices (contracts) {
@@ -115,16 +133,21 @@ async function getAllPoolRelativePrices (contracts) {
 async function performActionAndCheck (contracts, weightsBefore, weightsAfter, action) {
   const {tokenAddresses} = contracts;
 
-  await checkPoolWeights(contracts, weightsBefore);
+  const _weights = await getPoolWeights(contracts);
   const _p = await getAllPoolRelativePrices(contracts);
   await action();
   const p = await getAllPoolRelativePrices(contracts);
-  await checkPoolWeights(contracts, weightsAfter);
+  const weights = await getPoolWeights(contracts);
+
+  for (let i = 0; i < _weights.length; i++) {
+    // check if token weight before and after match checked values
+    expect(_weights[i]).to.be.bignumber.equal(weight(weightsBefore[i]));
+    expect(weights[i]).to.be.bignumber.equal(weight(weightsAfter[i]));
+  }
 
   for (let i = 0; i < tokenAddresses.length; i++) {
     for (let j = 0; j < tokenAddresses.length; j++) {
-      // mlog.log(`price:${tokenNames[i]}:${tokenNames[j]}=${_p[i][j].toString()}`);
-      expect(_p[i][j]).to.be.bignumber.equal(p[i][j]);
+      aproxCheck(_p[i][j], p[i][j]);
     }
   }
 }
@@ -132,18 +155,20 @@ async function performActionAndCheck (contracts, weightsBefore, weightsAfter, ac
 async function performRebaseResyncAndCheck (contracts, rebasePerc, weightsBefore, weightsAfter) {
   return performActionAndCheck(contracts, weightsBefore, weightsAfter, async () => {
     const {crpPool, ampl} = contracts;
-
-    // const _b = await ampl.balanceOf.call(contracts.bPool.address);
-    // mlog.log(`ampl_balance_before: ${_b.toString()}`);
-
+    const _weights = await getPoolWeights(contracts);
     await invokeRebase(ampl, rebasePerc);
-
-    // const b = await ampl.balanceOf.call(contracts.bPool.address);
-    // mlog.log(`ampl_balance_after: ${b.toString()}`);
-
     await crpPool.resyncWeight(ampl.address);
+    const weights = await getPoolWeights(contracts);
+    const round = new BN(1e9);
+    const rebaseFactor = new BN((100 + rebasePerc) * 1e7);
+    for (let i = 1; i < weights.length; i++) {
+      aproxCheck(
+        _weights[0].mul(rebaseFactor).div(_weights[i]),
+        weights[0].mul(round).div(weights[i])
+      );
+    }
   });
 }
 
 module.exports = { invokeRebase, toFixedPt, weight, setupPairElasticCrp,
-  checkPoolWeights, performActionAndCheck, performRebaseResyncAndCheck };
+  aproxCheck, checkPoolWeights, performActionAndCheck, performRebaseResyncAndCheck };

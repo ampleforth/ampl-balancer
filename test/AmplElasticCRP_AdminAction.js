@@ -1,6 +1,6 @@
 const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
-const { setupPairElasticCrp, weight, toFixedPt, invokeRebase,
+const { setupPairElasticCrp, weight, toFixedPt, invokeRebase, aproxCheck,
   checkPoolWeights } = require('./helper');
 
 function $AMPL (x) {
@@ -42,16 +42,18 @@ describe('when weights go out of bounds', function () {
   });
 
   describe('updateWeightsGradually', function () {
-    describe('when weights are too high, admin action to adjust them back', function () {
+    describe('when weights deviate too much, admin action to adjust them back', function () {
       it('should adjust weights while keeping price unchanged', async function () {
         await checkPoolWeights(contracts, [10, 10]);
+        await invokeRebase(ampl, +1500.0);
+        await crpPool.resyncWeight(ampl.address);
+        await checkPoolWeights(contracts, [40, 2.5]);
+        await invokeRebase(ampl, +41);
+        await crpPool.resyncWeight(ampl.address);
+        await checkPoolWeights(contracts,
+          ['47.497368348151668938', '2.105379802666297382']);
 
         const _p = await bPool.getSpotPrice.call(ampl.address, stableCoin.address);
-
-        await invokeRebase(ampl, +300.0);
-        await crpPool.resyncWeight(ampl.address);
-        await checkPoolWeights(contracts, [40, 10]);
-
         await invokeRebase(ampl, +10.0);
         await expectRevert(
           crpPool.resyncWeight(ampl.address), // resync operation fails here
@@ -65,52 +67,16 @@ describe('when weights go out of bounds', function () {
         // NOTE: consider pausing swapping here
         const currentBlock = (await time.latestBlock()).toNumber();
         const waitForBlocks = 10;
-        await crpPool.updateWeightsGradually([weight(22), weight(5)],
+        await crpPool.updateWeightsGradually([weight(26.1235525915), weight(1.05268990133)],
           currentBlock, currentBlock + waitForBlocks);
         for (let i = 0; i < waitForBlocks; i++) {
           await time.advanceBlock();
           await crpPool.pokeWeights();
         }
+        await checkPoolWeights(contracts, [26.1235525915, 1.05268990133]);
 
-        await checkPoolWeights(contracts, [22, 5]);
         const p_ = await bPool.getSpotPrice.call(ampl.address, stableCoin.address);
-        expect(_p).to.be.bignumber.equal(p_);
-      });
-    });
-
-    describe('when weights are too low, admin action to adjust them back', function () {
-      it('should result adjust weights and price should remain same', async function () {
-        await checkPoolWeights(contracts, [10, 10]);
-
-        const _p = await bPool.getSpotPrice.call(ampl.address, stableCoin.address);
-
-        await invokeRebase(ampl, -90.0);
-        await crpPool.resyncWeight(ampl.address);
-        await checkPoolWeights(contracts, [1, 10]);
-
-        await invokeRebase(ampl, -10.0);
-        await expectRevert(
-          crpPool.resyncWeight(ampl.address), // resync operation fails here
-          'ERR_MIN_WEIGHT'
-        );
-        await bPool.gulp(ampl.address);
-        const p = await bPool.getSpotPrice.call(ampl.address, stableCoin.address);
-        expect(_p).to.be.bignumber.not.equal(p); // price is out of sync now
-
-        // Admin action to adjust wights proportionally up
-        // NOTE: consider pausing swapping here
-        const currentBlock = (await time.latestBlock()).toNumber();
-        const waitForBlocks = 10;
-        await crpPool.updateWeightsGradually([weight(1.8), weight(20)],
-          currentBlock, currentBlock + waitForBlocks);
-        for (let i = 0; i < waitForBlocks; i++) {
-          await time.advanceBlock();
-          await crpPool.pokeWeights();
-        }
-
-        await checkPoolWeights(contracts, [1.8, 20]);
-        const p_ = await bPool.getSpotPrice.call(ampl.address, stableCoin.address);
-        expect(_p).to.be.bignumber.equal(p_);
+        aproxCheck(_p, p_);
       });
     });
   });
