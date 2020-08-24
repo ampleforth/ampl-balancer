@@ -73,15 +73,19 @@ async function setupPairElasticCrp (
   await AmplElasticCRP.link('RightsManager', rightsManager.address);
   await AmplElasticCRP.link('SmartPoolManager', smartPoolManager.address);
   await AmplElasticCRP.link('BalancerSafeMath', balSafeMath.address);
+  const poolParams = {
+    tokenSymbol: tokenNames.join("-"),
+    tokenName: tokenNames.join("-"),
+    tokens: tokenAddresses,
+    startBalances: startBalances,
+    startWeights: startWeights,
+    swapFee: swapFee,
+  };
 
   const bFactory = await BFactory.new();
   const crpPool = await AmplElasticCRP.new(
     bFactory.address,
-    'balElasticTestPool',
-    tokenAddresses,
-    startBalances,
-    startWeights,
-    swapFee,
+    poolParams,
     permissions,
   );
 
