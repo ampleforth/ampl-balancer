@@ -1,0 +1,22 @@
+dist: trusty
+sudo: required
+
+language: node_js
+node_js:
+  - "10"
+
+cache:
+  directories:
+    - node_modules
+
+install:
+  - yarn install
+
+script:
+  - yarn compile
+  - yarn test
+
+notifications:
+  email:
+    - dev-support@ampleforth.org
+  slack: fragmentsorg:2bN0L0FCZZ0illBRyPucRZkV
