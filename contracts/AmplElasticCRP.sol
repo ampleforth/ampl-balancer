@@ -17,9 +17,9 @@ import "./Math.sol";
  *
  * @dev   Extension of Balancer labs' configurable rights pool (smart-pool).
  *        Amples are a dynamic supply tokens, supply and individual balances change daily by a Rebase operation.
- *        In constant-function markets, Ampleforth's rebases result in Impermanent Loss (IL) liquidity providers.
- *        The AmplElasticCRP is an extension of Balancer Lab's ConfigurableRightsPool which mitigates IL
- *        induced by supply changes.
+ *        In constant-function markets, Ampleforth's supply result in Impermanent Loss (IL)
+ *        to liquidity providers. The AmplElasticCRP is an extension of Balancer Lab's
+ *        ConfigurableRightsPool which mitigates IL induced by supply changes.
  *
  *        It accomplishes this by doing the following mechanism:
  *        The `resyncWeight` method will be invoked atomically after rebase through Ampleforth's orchestrator.

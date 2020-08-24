@@ -1,16 +1,17 @@
 ## ampl-balancer
 
-Ampl-Balancer integration. Intermediate smart-contract in the rebase path which adjust weights in balancer smart-pools which contain $AMPL.
+`AmplElasticCRP.sol` - Extension of Balancer labs' configurable rights pool (smart-pool).
 
 
 ## Getting started
 
 ```
+# install dependencies
 yarn install
 
 # compile contracts
 yarn compile
 
-# run unit and integration tests
+# run tests
 yarn test
 ```
