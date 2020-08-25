@@ -50,7 +50,7 @@ describe('CRP pool ampl + other asset', function () {
       /*
         w1=10, w2=10, rebase increases by 10%
         wt = 110/100 * w1
-        w1`=sqrt(10, wt)=10.48, w2`= w1`/w2*wt = 9.53
+        w1`=sqrt(10 * wt)=10.48, w2`= w1`/w2*wt = 9.53
       */
       it('should adjust weights while keeping price unchanged', async function () {
         await performRebaseResyncAndCheck(contracts, +10.0,

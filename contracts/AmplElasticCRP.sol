@@ -34,7 +34,7 @@ import "./Math.sol";
  *
  *        Ample target weight: w_ampl_target = (100+x)/100 * w_ampl
  *
- *        w_ampl_new = sqrt(w_ampl, w_ampl_target)  // geometric mean
+ *        w_ampl_new = sqrt(w_ampl * w_ampl_target)  // geometric mean
  *        for i in tn:
  *           w_ti_new = (w_ampl_new * w_ti) / w_ampl_target
  *

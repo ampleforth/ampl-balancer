@@ -15,7 +15,8 @@
   "main": "index.js",
   "scripts": {
     "compile": "./scripts/compile-contracts.sh",
-    "lint": "npx eslint ./scripts ./test ./util *.js --cache --fix && npx solhint ./contracts/*.sol ./contracts/lib/*.sol",
+    "coverage": "./scripts/coverage.sh",
+    "lint": "eslint ./scripts ./test ./util *.js --cache --fix && solhint ./contracts/*.sol ./contracts/lib/*.sol",
     "test": "mocha --exit --recursive --timeout 10000"
   },
   "pre-commit": {
@@ -34,6 +35,7 @@
     "ajv": "^5.0.0",
     "bignumber.js": "^9.0.0",
     "chai": "^4.2.0",
+    "coveralls": "^3.1.0",
     "eslint": "^4.19.1",
     "eslint-config-google": "^0.9.1",
     "eslint-config-mocha": "0.0.0",
@@ -56,6 +58,7 @@
     "pre-commit": "^1.2.2",
     "prettier": "^1.12.1",
     "solhint": "^2.0.0",
+    "solidity-coverage": "github:rotcivegaf/solidity-coverage#5875f5b7bc74d447f3312c9c0e9fc7814b482477",
     "uFragments": "https://github.com/ampleforth/uFragments.git#v1.0.2",
     "zos-lib": "^2.0.0"
   }

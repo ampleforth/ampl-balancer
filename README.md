@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.com/ampleforth/ampl-balancer.svg?token=xxNsLhLrTiyG3pc78i5v&branch=master)](https://travis-ci.com/ampleforth/ampl-balancer)
 
+[![Coverage Status](https://coveralls.io/repos/github/ampleforth/ampl-balancer/badge.svg?branch=coverage&t=HJgB2m)](https://coveralls.io/github/ampleforth/ampl-balancer?branch=coverage)
+
 `AmplElasticCRP.sol` - Extension of Balancer labs' configurable rights pool (smart-pool).
 
 When the Ampleforth protocol [adjusts supply](https://www.ampleforth.org/redbook/ampleforth_protocol/) it expects market actors to propagate this information back into price. However, un-informed AMMs like Uniswap and Balancer do this automatically as they price assets by the relative pool balances. This lets arbitrageurs extract value from liqudity providers in these platforms.
