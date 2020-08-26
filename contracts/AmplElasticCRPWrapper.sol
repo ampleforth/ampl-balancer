@@ -13,7 +13,7 @@ interface IAmplElasticCRP {
     function resyncWeight(address token) external;
 }
 
-contract OrchestratorAmplElasticCRPCaller {
+contract AmplElasticCRPWrapper {
     event LogErrorReason(string reason);
 
     function safeResync(address _crp, IBPool _bpool, address token) public {

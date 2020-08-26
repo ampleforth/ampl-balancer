@@ -2,18 +2,18 @@ const { expect } = require('chai');
 const { expectEvent } = require('@openzeppelin/test-helpers');
 const { contract, web3 } = require('@openzeppelin/test-environment');
 
-const OrchestratorAmplElasticCRPCaller = contract.fromArtifact('OrchestratorAmplElasticCRPCaller');
+const AmplElasticCRPWrapper = contract.fromArtifact('AmplElasticCRPWrapper');
 const MockCRPPool = contract.fromArtifact('MockCRPPool');
 const MockCRPPoolRevertWithString = contract.fromArtifact('MockCRPPoolRevertWithString');
 const MockCRPPoolRevert = contract.fromArtifact('MockCRPPoolRevert');
 
 const TOKEN_ADDRESS = '0x0aeeE23D16084d763e7a65577020C1f3d18804F2';
 
-describe('OrchestratorAmplElasticCRPCaller', function () {
+describe('AmplElasticCRPWrapper', function () {
   describe('successful resync', function () {
     it('should call resync and return', async function () {
       const mockPool = await MockCRPPool.new();
-      const caller = await OrchestratorAmplElasticCRPCaller.new();
+      const caller = await AmplElasticCRPWrapper.new();
       const tx = await caller.safeResync(mockPool.address, mockPool.address, TOKEN_ADDRESS);
 
       const resyncLogAbi = mockPool.abi.filter(e => e.name === 'Resync')[0];
@@ -26,7 +26,7 @@ describe('OrchestratorAmplElasticCRPCaller', function () {
   describe('revert resync with reason', function () {
     it('should call gulp and log error', async function () {
       const mockPool = await MockCRPPoolRevertWithString.new();
-      const caller = await OrchestratorAmplElasticCRPCaller.new();
+      const caller = await AmplElasticCRPWrapper.new();
       const tx = await caller.safeResync(mockPool.address, mockPool.address, TOKEN_ADDRESS);
 
       const gulpLogAbi = mockPool.abi.filter(e => e.name === 'Gulp')[0];
@@ -43,7 +43,7 @@ describe('OrchestratorAmplElasticCRPCaller', function () {
   describe('revert resync without reason', function () {
     it('should call gulp and log error', async function () {
       const mockPool = await MockCRPPoolRevert.new();
-      const caller = await OrchestratorAmplElasticCRPCaller.new();
+      const caller = await AmplElasticCRPWrapper.new();
       const tx = await caller.safeResync(mockPool.address, mockPool.address, TOKEN_ADDRESS);
 
       const gulpLogAbi = mockPool.abi.filter(e => e.name === 'Gulp')[0];

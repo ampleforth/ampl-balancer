@@ -2,7 +2,7 @@ const { expectEvent } = require('@openzeppelin/test-helpers');
 const { contract } = require('@openzeppelin/test-environment');
 const { expect } = require('chai');
 
-const OrchestratorAmplElasticCRPCaller = contract.fromArtifact('OrchestratorAmplElasticCRPCaller');
+const AmplElasticCRPWrapper = contract.fromArtifact('AmplElasticCRPWrapper');
 const { setupPairElasticCrp, weight, toFixedPt, invokeRebase, checkPoolWeights } = require('./helper');
 
 function $AMPL (x) {
@@ -14,7 +14,7 @@ function $USD (x) {
 }
 
 let contracts, ampl, stableCoin, bPool, crpPool, caller;
-describe('OrchestratorAmplElasticCRPCaller', function () {
+describe('AmplElasticCRPWrapper', function () {
   beforeEach(async function () {
     const swapFee = 10 ** 15;
     const minimumWeightChangeBlockPeriod = 10;
@@ -42,7 +42,7 @@ describe('OrchestratorAmplElasticCRPCaller', function () {
     bPool = contracts.bPool;
     crpPool = contracts.crpPool;
 
-    caller = await OrchestratorAmplElasticCRPCaller.new();
+    caller = await AmplElasticCRPWrapper.new();
   });
 
   describe('when weights deviate too much', function () {
