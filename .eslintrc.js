@@ -53,7 +53,7 @@ module.exports = {
               "bytecode", "Binance", "ampl", "unstake", "unstaked", "unstaking",
               "ampls", "staker", "ownable",
               "Balancer", "Denormalized", "rebalance", "crp", "resync", "usd",
-              "bmath",
+              "bmath", "Orchestrator",
 
               // names
               "nithin", "naguib"

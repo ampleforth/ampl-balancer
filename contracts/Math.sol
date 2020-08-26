@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GNUV3
+
 pragma solidity 0.6.12;
 
 // Reference: https://github.com/Uniswap/uniswap-v2-core/blob/master/contracts/libraries/Math.sol
