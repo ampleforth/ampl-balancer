@@ -14,22 +14,17 @@ interface IAmplElasticCRP {
 }
 
 contract AmplElasticCRPWrapper {
-    event ErrorReason(string reason);
+    event ErrorReason(bytes reason);
 
-    function safeResync(address _crp, IBPool _bpool, address token) public {
+    function safeResync(address crp, IBPool bpool, address token) public {
 
-        try IAmplElasticCRP(_crp).resyncWeight(token) {
+        try IAmplElasticCRP(crp).resyncWeight(token) {
             // no-op : Resync call success
         }
 
-        catch Error(string memory reason) {
-            IBPool(_bpool).gulp(token);
-            emit ErrorReason(reason);
-        }
-
         catch (bytes memory reason) {
-            IBPool(_bpool).gulp(token);
-            emit ErrorReason(string(reason));
+            IBPool(bpool).gulp(token);
+            emit ErrorReason(reason);
         }
 
     }

@@ -1,5 +1,4 @@
-const { expectEvent } = require('@openzeppelin/test-helpers');
-const { contract } = require('@openzeppelin/test-environment');
+const { contract, web3 } = require('@openzeppelin/test-environment');
 const { expect } = require('chai');
 
 const AmplElasticCRPWrapper = contract.fromArtifact('AmplElasticCRPWrapper');
@@ -62,9 +61,13 @@ describe('AmplElasticCRPWrapper', function () {
       await invokeRebase(ampl, +10.0);
 
       const tx = await caller.safeResync(crpPool.address, bPool.address, ampl.address);
-      expectEvent(tx, 'ErrorReason', {
-        reason: 'ERR_MAX_TOTAL_WEIGHT'
-      });
+
+      const log = tx.logs[0];
+      const reason = web3.utils.toAscii(log.args.reason);
+      expect(log.event).to.eq('ErrorReason');
+      expect(
+        reason.includes('ERR_MAX_TOTAL_WEIGHT')
+      ).to.be.true;
 
       const p = await bPool.getSpotPrice.call(ampl.address, stableCoin.address);
       expect(_p).to.be.bignumber.not.equal(p); // after gulp price is out of sync now

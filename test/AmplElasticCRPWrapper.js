@@ -34,9 +34,12 @@ describe('AmplElasticCRPWrapper', function () {
       const gulpLog = web3.eth.abi.decodeLog(gulpLogAbi.inputs, gulpLogRaw.data, gulpLogRaw.topics);
       expect(gulpLog.token).to.eq(TOKEN_ADDRESS);
 
-      expectEvent(tx, 'ErrorReason', {
-        reason: 'FAILED'
-      });
+      const log = tx.logs[0];
+      const reason = web3.utils.toAscii(log.args.reason);
+      expect(log.event).to.eq('ErrorReason');
+      expect(
+        reason.includes('FAILED')
+      ).to.be.true;
     });
   });
 
@@ -52,7 +55,7 @@ describe('AmplElasticCRPWrapper', function () {
       expect(gulpLog.token).to.eq(TOKEN_ADDRESS);
 
       expectEvent(tx, 'ErrorReason', {
-        reason: ''
+        reason: null
       });
     });
   });
