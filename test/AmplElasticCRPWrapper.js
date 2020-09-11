@@ -34,7 +34,7 @@ describe('AmplElasticCRPWrapper', function () {
       const gulpLog = web3.eth.abi.decodeLog(gulpLogAbi.inputs, gulpLogRaw.data, gulpLogRaw.topics);
       expect(gulpLog.token).to.eq(TOKEN_ADDRESS);
 
-      expectEvent(tx, 'LogErrorReason', {
+      expectEvent(tx, 'ErrorReason', {
         reason: 'FAILED'
       });
     });
@@ -51,7 +51,7 @@ describe('AmplElasticCRPWrapper', function () {
       const gulpLog = web3.eth.abi.decodeLog(gulpLogAbi.inputs, gulpLogRaw.data, gulpLogRaw.topics);
       expect(gulpLog.token).to.eq(TOKEN_ADDRESS);
 
-      expectEvent(tx, 'LogErrorReason', {
+      expectEvent(tx, 'ErrorReason', {
         reason: ''
       });
     });

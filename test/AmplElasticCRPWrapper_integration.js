@@ -62,7 +62,7 @@ describe('AmplElasticCRPWrapper', function () {
       await invokeRebase(ampl, +10.0);
 
       const tx = await caller.safeResync(crpPool.address, bPool.address, ampl.address);
-      expectEvent(tx, 'LogErrorReason', {
+      expectEvent(tx, 'ErrorReason', {
         reason: 'ERR_MAX_TOTAL_WEIGHT'
       });
 

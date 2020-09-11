@@ -14,7 +14,7 @@ interface IAmplElasticCRP {
 }
 
 contract AmplElasticCRPWrapper {
-    event LogErrorReason(string reason);
+    event ErrorReason(string reason);
 
     function safeResync(address _crp, IBPool _bpool, address token) public {
 
@@ -29,7 +29,7 @@ contract AmplElasticCRPWrapper {
 
             IBPool(_bpool).gulp(token);
 
-            emit LogErrorReason(reason);
+            emit ErrorReason(reason);
 
 
         }
@@ -38,7 +38,7 @@ contract AmplElasticCRPWrapper {
 
             IBPool(_bpool).gulp(token);
 
-            emit LogErrorReason(string(reason));
+            emit ErrorReason(string(reason));
 
         }
 
