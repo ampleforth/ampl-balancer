@@ -18,28 +18,18 @@ contract AmplElasticCRPWrapper {
 
     function safeResync(address _crp, IBPool _bpool, address token) public {
 
-
         try IAmplElasticCRP(_crp).resyncWeight(token) {
-
             // no-op : Resync call success
-
         }
 
         catch Error(string memory reason) {
-
             IBPool(_bpool).gulp(token);
-
             emit ErrorReason(reason);
-
-
         }
 
         catch (bytes memory reason) {
-
             IBPool(_bpool).gulp(token);
-
             emit ErrorReason(string(reason));
-
         }
 
     }
