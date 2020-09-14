@@ -39,7 +39,7 @@ module.exports = {
               "passcode", "geth", "rpc", "rpcmsg","stdev",  "stochasm", "aggregator",
               "whitelist", "ethereum", "npx", "testrpc", "solc", "whitelisted",
               "unlockable", "openzeppelin", "checksum", "unstakes", "txfee",
-              "relayer", "gsn", 'struct', "const","mlog",
+              "relayer", "gsn", 'struct', "const","mlog", "ascii",
 
               // shorthand
               "eth", "args", "util", "utils", "msg", "prev", "bal",
@@ -53,7 +53,7 @@ module.exports = {
               "bytecode", "Binance", "ampl", "unstake", "unstaked", "unstaking",
               "ampls", "staker", "ownable",
               "Balancer", "Denormalized", "rebalance", "crp", "resync", "usd",
-              "bmath",
+              "bmath", "Orchestrator",
 
               // names
               "nithin", "naguib"

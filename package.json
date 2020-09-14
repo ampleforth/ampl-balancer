@@ -57,7 +57,7 @@
     "openzeppelin-solidity": "2.4.0",
     "pre-commit": "^1.2.2",
     "prettier": "^1.12.1",
-    "solhint": "^2.0.0",
+    "solhint": "^3.0.0",
     "solidity-coverage": "github:rotcivegaf/solidity-coverage#5875f5b7bc74d447f3312c9c0e9fc7814b482477",
     "uFragments": "https://github.com/ampleforth/uFragments.git#v1.0.2",
     "zos-lib": "^2.0.0"
