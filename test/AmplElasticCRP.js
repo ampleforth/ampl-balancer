@@ -26,7 +26,7 @@ describe('AmplElasticCRP', function () {
           canAddRemoveTokens: false,
           canWhitelistLPs: false
         };
-        const initialSupply = toFixedPt(1.0, 18);
+        const initialSupply = toFixedPt(100.0, 18);
 
         await expectRevert(
           setupPairElasticCrp(
@@ -53,7 +53,7 @@ describe('AmplElasticCRP', function () {
           canAddRemoveTokens: false,
           canWhitelistLPs: false
         };
-        const initialSupply = toFixedPt(1.0, 18);
+        const initialSupply = toFixedPt(100.0, 18);
 
         const contracts = await setupPairElasticCrp(
           tokens, startWeights, startBalances, permissions,
@@ -87,7 +87,7 @@ describe('AmplElasticCRP', function () {
           canAddRemoveTokens: false,
           canWhitelistLPs: false
         };
-        const initialSupply = toFixedPt(1.0, 18);
+        const initialSupply = toFixedPt(100.0, 18);
 
         const contracts = await setupPairElasticCrp(
           tokens, startWeights, startBalances, permissions,

@@ -7,7 +7,6 @@ pragma experimental ABIEncoderV2;
 
 // Imports
 import "configurable-rights-pool/contracts/ConfigurableRightsPool.sol";
-import "./Math.sol";
 
 /**
  * @author Ampleforth engineering team & Balancer Labs
@@ -69,7 +68,7 @@ contract AmplElasticCRP is ConfigurableRightsPool {
     {
 
         require(
-            ConfigurableRightsPool.getStartBlock() == 0,
+            ConfigurableRightsPool.gradualUpdate.startBlock == 0,
             "ERR_NO_UPDATE_DURING_GRADUAL");
 
         require(
@@ -100,7 +99,7 @@ contract AmplElasticCRP is ConfigurableRightsPool {
         );
 
         // new token weight = sqrt(current token weight * target token weight)
-        uint tokenWeightAfter = Math.sqrt(
+        uint tokenWeightAfter = BalancerSafeMath.sqrt(
             BalancerSafeMath.bdiv(
                 BalancerSafeMath.bmul(tokenWeightBefore, tokenWeightTarget),
                 1

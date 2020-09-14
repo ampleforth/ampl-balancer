@@ -28,7 +28,7 @@ describe('when weights go out of bounds', function () {
       canAddRemoveTokens: false,
       canWhitelistLPs: false
     };
-    const initialSupply = toFixedPt(1.0, 18);
+    const initialSupply = toFixedPt(100.0, 18);
 
     contracts = await setupPairElasticCrp(
       tokens, startWeights, startBalances, permissions,

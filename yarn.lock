@@ -2638,9 +2638,9 @@ configstore@^4.0.0:
     write-file-atomic "^2.0.0"
     xdg-basedir "^3.0.0"
 
-"configurable-rights-pool@https://github.com/balancer-labs/configurable-rights-pool.git#develop":
+"configurable-rights-pool@https://github.com/balancer-labs/configurable-rights-pool.git#master":
   version "0.0.1"
-  resolved "https://github.com/balancer-labs/configurable-rights-pool.git#be02d74740add29aed928e8dc598356f0181f961"
+  resolved "https://github.com/balancer-labs/configurable-rights-pool.git#1e78e693ef12b7e10237b2d1744dc6365ce16dba"
   dependencies:
     decimal.js "^10.2.0"
     dotenv "^8.2.0"
