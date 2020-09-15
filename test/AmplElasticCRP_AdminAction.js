@@ -1,7 +1,5 @@
 const { expectRevert, time } = require('@openzeppelin/test-helpers');
-const { expect } = require('chai');
-const { setupPairElasticCrp, weight, toFixedPt, invokeRebase, aproxCheck,
-  checkPoolWeights } = require('./helper');
+const { setupPairElasticCrp, weight, toFixedPt } = require('./helper');
 
 function $AMPL (x) {
   return toFixedPt(x, 9);
@@ -11,7 +9,7 @@ function $USD (x) {
   return toFixedPt(x, 6);
 }
 
-let contracts, ampl, stableCoin, bPool, crpPool;
+let contracts, ampl, crpPool;
 describe('admin action', function () {
   beforeEach(async function () {
     const swapFee = 10 ** 15;
@@ -36,8 +34,6 @@ describe('admin action', function () {
     );
 
     ampl = contracts.ampl;
-    stableCoin = contracts.otherTokens[0];
-    bPool = contracts.bPool;
     crpPool = contracts.crpPool;
   });
 

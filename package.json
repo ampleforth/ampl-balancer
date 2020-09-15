@@ -25,7 +25,7 @@
     ]
   },
   "dependencies": {
-    "configurable-rights-pool": "https://github.com/balancer-labs/configurable-rights-pool.git#master"
+    "configurable-rights-pool": "https://github.com/balancer-labs/configurable-rights-pool.git#develop"
   },
   "devDependencies": {
     "@openzeppelin/cli": "^2.6.0",

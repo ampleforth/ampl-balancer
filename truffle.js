@@ -29,15 +29,13 @@ module.exports = {
       ref: 'rinkeby-staging',
       network_id: 4,
       provider: () => keystoreProvider(rinkebyUrl),
-      gasPrice: 300000000000
-      // gas: 10000000,
+      gasPrice: 200000000000
     },
     kovan: {
       ref: 'kovan-staging',
       network_id: 42,
       provider: () => keystoreProvider(kovanUrl),
       gasPrice: 2000000000
-      // gas: 10000000,
     },
     mainnet: {
       ref: 'mainnet-prod',

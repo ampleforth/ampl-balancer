@@ -41,7 +41,7 @@ module.exports = {
               "unlockable", "openzeppelin", "checksum", "unstakes", "txfee",
               "relayer", "gsn", 'struct', "const","mlog", "ascii",
               "mainnet", "rinkeby", "ethereumjs", "priv", "keystore", "hdwallet",
-              "keyfile",
+              "keyfile", "kovan",
 
               // shorthand
               "eth", "args", "util", "utils", "msg", "prev", "bal",

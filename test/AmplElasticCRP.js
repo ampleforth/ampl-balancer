@@ -1,4 +1,4 @@
-const { expectRevert, time } = require('@openzeppelin/test-helpers');
+const { expectRevert } = require('@openzeppelin/test-helpers');
 const { setupPairElasticCrp, weight, toFixedPt } = require('./helper');
 
 function $AMPL (x) {
