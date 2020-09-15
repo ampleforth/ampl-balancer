@@ -53,6 +53,39 @@ contract AmplElasticCRP is ConfigurableRightsPool {
 
     }
 
+    function updateWeight(address token, uint newWeight)
+        external
+        logs
+        onlyOwner
+        needsBPool
+        override
+    {
+        revert("ERR_UNSUPPORTED_OPERATION");
+    }
+
+    function updateWeightsGradually(
+        uint[] calldata newWeights,
+        uint startBlock,
+        uint endBlock
+    )
+        external
+        logs
+        onlyOwner
+        needsBPool
+        override
+    {
+        revert("ERR_UNSUPPORTED_OPERATION");
+    }
+
+    function pokeWeights()
+        external
+        logs
+        needsBPool
+        override
+    {
+       revert("ERR_UNSUPPORTED_OPERATION");
+    }
+
     /*
      * @param token The address of the token in the underlying BPool to be weight adjusted.
      * @dev Checks if the token's current pool balance has deviated from cached balance,
@@ -67,9 +100,11 @@ contract AmplElasticCRP is ConfigurableRightsPool {
         needsBPool
     {
 
-        require(
-            ConfigurableRightsPool.gradualUpdate.startBlock == 0,
-            "ERR_NO_UPDATE_DURING_GRADUAL");
+        // NOTE: Skipping gradual update check
+        // Pool will never go into gradual update state as `updateWeightsGradually` is disabled
+        // require(
+        //     ConfigurableRightsPool.gradualUpdate.startBlock == 0,
+        //     "ERR_NO_UPDATE_DURING_GRADUAL");
 
         require(
             IBPool(address(bPool)).isBound(token),

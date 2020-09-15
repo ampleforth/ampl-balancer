@@ -40,6 +40,8 @@ module.exports = {
               "whitelist", "ethereum", "npx", "testrpc", "solc", "whitelisted",
               "unlockable", "openzeppelin", "checksum", "unstakes", "txfee",
               "relayer", "gsn", 'struct', "const","mlog", "ascii",
+              "mainnet", "rinkeby", "ethereumjs", "priv", "keystore", "hdwallet",
+              "keyfile",
 
               // shorthand
               "eth", "args", "util", "utils", "msg", "prev", "bal",
