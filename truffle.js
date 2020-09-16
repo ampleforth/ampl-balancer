@@ -41,7 +41,7 @@ module.exports = {
       ref: 'mainnet-prod',
       network_id: 1,
       provider: () => keystoreProvider(mainnetUrl),
-      gasPrice: 35000000000
+      gasPrice: 110000000000
     }
   }
 };
