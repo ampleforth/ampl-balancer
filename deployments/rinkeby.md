@@ -6,7 +6,7 @@ ampl: "0x027dbcA046ca156De9622cD1e2D907d375e53aa7"
 usdc: "0x21F3179cADAE46509f615428F639e38123A508Ac"
 
 bFactory: "0x9C84391B443ea3a48788079a5f98e2EaD55c9309"
-crpPool: "0x0b54923f21e2b873e38d3eb4674E7531A732Da2A" # develop
+crpPool: "0x0b54923f21e2b873e38d3eb4674E7531A732Da2A"
 bPool: "0x00dcf2a91100ebb472d3d1d41a3c8164ca168476"
 wrapper: "0x2AcaECd8B6BD2223dd2BDC01566A7aFdC5681323"
 
@@ -73,7 +73,7 @@ crpPool = await AmplElasticCRP.new(bFactory, params, permissions);
 await crpPool.setController(owner);
 await crpPool.getController.call()
 
-initialSupply = '1000000000000000000000' // 100e18
+initialSupply = '1000000000000000000000' // 1000e18
 minimumWeightChangeBlockPeriod = 10;
 addTokenTimeLockInBlocks = 10;
 
